@@ -6,10 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${SCRIPT_DIR}/check_required_tools.sh" go >/dev/null
 
 coverage_min="${COVERAGE_MIN:-90}"
+coverage_packages="${COVERAGE_PACKAGES:-./...}"
 profile_file="$(mktemp)"
 trap 'rm -f "${profile_file}"' EXIT
 
-go test -tags=integration ./internal/... -coverprofile="${profile_file}"
+go test -tags=integration ${coverage_packages} -coverprofile="${profile_file}"
 
 total_line="$(go tool cover -func="${profile_file}" | awk '/^total:/ {print $0}')"
 if [[ -z "${total_line}" ]]; then

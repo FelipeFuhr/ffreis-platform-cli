@@ -5,11 +5,13 @@ BINARY     := platform-cli
 BUILD_DIR  := ./bin
 MODULE     := github.com/ffreis/platform-cli
 CMD_PKG    := ./cmd/$(BINARY)
+CMD_DIR    := cmd/$(BINARY)
 
 GOFMT         ?= gofmt
 GOLANGCI_LINT_VERSION ?= v2.4.0
 GITLEAKS      ?= gitleaks
 COVERAGE_MIN  ?= 90
+COVERAGE_PACKAGES ?= ./...
 
 LEFTHOOK_VERSION ?= 1.7.10
 
@@ -41,6 +43,10 @@ all: tidy build
 
 ## build: compile the binary into ./bin/
 build:
+	@if [ ! -d "$(CMD_DIR)" ]; then \
+		echo "No CLI command package found at $(CMD_DIR); skipping build."; \
+		exit 0; \
+	fi
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) $(CMD_PKG)
 	@echo "built $(BUILD_DIR)/$(BINARY)"
@@ -107,11 +113,15 @@ test-race:
 
 ## coverage-gate: run tests with coverage; fail if below COVERAGE_MIN
 coverage-gate:
-	@COVERAGE_MIN="$(COVERAGE_MIN)" ./scripts/hooks/check_coverage_gate.sh
+	@COVERAGE_MIN="$(COVERAGE_MIN)" COVERAGE_PACKAGES="$(COVERAGE_PACKAGES)" ./scripts/hooks/check_coverage_gate.sh
 
 ## smoke-check: build binary and verify --help exits cleanly
 smoke-check:
 	@set -euo pipefail; \
+	if [ ! -d "$(CMD_DIR)" ]; then \
+		echo "No CLI command package found at $(CMD_DIR); skipping smoke check."; \
+		exit 0; \
+	fi; \
 	tmp_bin="$$(mktemp)"; \
 	trap 'rm -f "$$tmp_bin"' EXIT; \
 	go build $(LDFLAGS) -o "$$tmp_bin" $(CMD_PKG) && "$$tmp_bin" --help >/dev/null
