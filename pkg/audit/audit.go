@@ -75,13 +75,22 @@ func ScanResources(ctx context.Context, fetch PageFetcher, contract inventory.Co
 }
 
 func ClassifyResource(mapping taggingtypes.ResourceTagMapping, contract inventory.Contract, env string) Resource {
-	tags := map[string]string{}
+	resource := newClassifiedResource(mapping)
+	missingCore := inventory.MissingTags(resource.Tags, inventory.CoreTagKeys)
+	missingOwnership := inventory.MissingTags(resource.Tags, inventory.OwnershipTagKeys)
+	assignResourceStatus(&resource, contract, env, missingCore, missingOwnership)
+	applyOwnedResourceDefaults(&resource, contract)
+	return resource
+}
+
+func newClassifiedResource(mapping taggingtypes.ResourceTagMapping) Resource {
+	tags := make(map[string]string, len(mapping.Tags))
 	for _, tag := range mapping.Tags {
 		tags[sdkaws.ToString(tag.Key)] = sdkaws.ToString(tag.Value)
 	}
 	resourceARN := sdkaws.ToString(mapping.ResourceARN)
 	resourceType := ResourceTypeFromARN(resourceARN)
-	resource := Resource{
+	return Resource{
 		ResourceType: resourceType,
 		ARN:          resourceARN,
 		Name:         ResourceNameFromARN(resourceARN, resourceType),
@@ -92,39 +101,43 @@ func ClassifyResource(mapping taggingtypes.ResourceTagMapping, contract inventor
 		Layer:        tags["Layer"],
 		Tags:         tags,
 	}
+}
 
-	missingCore := inventory.MissingTags(tags, inventory.CoreTagKeys)
-	missingOwnership := inventory.MissingTags(tags, inventory.OwnershipTagKeys)
-
-	switch {
-	case resource.ManagedBy == "terraform" && resource.Stack == contract.StackTag && resource.Environment == env:
+func assignResourceStatus(resource *Resource, contract inventory.Contract, env string, missingCore, missingOwnership []string) {
+	if resource.ManagedBy == "terraform" && resource.Stack == contract.StackTag && resource.Environment == env {
 		resource.Status = "OWNED"
-		if len(missingOwnership) > 0 {
-			resource.Issues = append(resource.Issues, "missing ownership tags: "+strings.Join(missingOwnership, ", "))
-		}
-	case resource.ManagedBy != "" || resource.Stack != "":
-		resource.Status = "OTHER_MANAGED"
-		if len(missingCore) > 0 {
-			resource.Issues = append(resource.Issues, "missing core tags: "+strings.Join(missingCore, ", "))
-		}
-		if len(missingOwnership) > 0 && resource.ManagedBy == "terraform" {
-			resource.Issues = append(resource.Issues, "missing ownership tags: "+strings.Join(missingOwnership, ", "))
-		}
-	default:
-		resource.Status = "UNOWNED"
-		if len(missingCore) > 0 {
-			resource.Issues = append(resource.Issues, "missing core tags: "+strings.Join(missingCore, ", "))
-		}
+		appendMissingTagIssue(resource, "missing ownership tags", missingOwnership)
+		return
 	}
+	if resource.ManagedBy != "" || resource.Stack != "" {
+		resource.Status = "OTHER_MANAGED"
+		appendMissingTagIssue(resource, "missing core tags", missingCore)
+		if resource.ManagedBy == "terraform" {
+			appendMissingTagIssue(resource, "missing ownership tags", missingOwnership)
+		}
+		return
+	}
+	resource.Status = "UNOWNED"
+	appendMissingTagIssue(resource, "missing core tags", missingCore)
+}
 
-	if resource.Repo == "" && resource.Status == "OWNED" {
+func appendMissingTagIssue(resource *Resource, prefix string, missing []string) {
+	if len(missing) == 0 {
+		return
+	}
+	resource.Issues = append(resource.Issues, prefix+": "+strings.Join(missing, ", "))
+}
+
+func applyOwnedResourceDefaults(resource *Resource, contract inventory.Contract) {
+	if resource.Status != "OWNED" {
+		return
+	}
+	if resource.Repo == "" {
 		resource.Repo = contract.RepoTag
 	}
-	if resource.Layer == "" && resource.Status == "OWNED" {
+	if resource.Layer == "" {
 		resource.Layer = contract.LayerTag
 	}
-
-	return resource
 }
 
 func BuildReport(resources []Resource) Report {

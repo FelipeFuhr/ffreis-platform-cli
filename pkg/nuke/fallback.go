@@ -43,6 +43,12 @@ const (
 	purgeFailureRetryable
 )
 
+const (
+	resourceTypeIAMRole  = "iam/role"
+	purgeErrorFormat     = "%s %s: %v"
+	purgeStateFileFormat = "state-%06d.tfstate"
+)
+
 type purgeManualError struct {
 	cause error
 	hint  string
@@ -212,7 +218,7 @@ func ownedResourcesForFallback(resources []sharedaudit.Resource) []sharedaudit.R
 
 func deletePriority(resourceType string) int {
 	switch resourceType {
-	case "iam/role", "s3":
+	case resourceTypeIAMRole, "s3":
 		return 100
 	default:
 		return 10
@@ -233,16 +239,16 @@ func runManagedSDKFallbackNuke(ctx context.Context, awsCfg sdkaws.Config, out Re
 			out.Status("muted", "skip", fmt.Sprintf("%s %s already absent", resource.ResourceType, resource.Name))
 		case purgeFailureManual:
 			summary.Manual++
-			errs = append(errs, fmt.Sprintf("%s %s: %v", resource.ResourceType, resource.Name, err))
+			errs = append(errs, formatPurgeError(resource, err))
 			out.Status("warn", "skip", fmt.Sprintf("%s %s requires manual cleanup", resource.ResourceType, resource.Name))
 		case purgeFailureBlocked:
 			summary.Blocked++
-			errs = append(errs, fmt.Sprintf("%s %s: %v", resource.ResourceType, resource.Name, err))
+			errs = append(errs, formatPurgeError(resource, err))
 			out.Status("warn", "wait", fmt.Sprintf("%s %s is blocked by dependent resources", resource.ResourceType, resource.Name))
 		default:
 			if err != nil {
 				summary.Failed++
-				errs = append(errs, fmt.Sprintf("%s %s: %v", resource.ResourceType, resource.Name, err))
+				errs = append(errs, formatPurgeError(resource, err))
 				out.Status("error", "fail", fmt.Sprintf("delete %s %s: %v", resource.ResourceType, resource.Name, err))
 			} else {
 				summary.Deleted++
@@ -281,7 +287,7 @@ func deleteManagedResourceWithFallback(ctx context.Context, awsCfg sdkaws.Config
 
 func deleteResourceNatively(ctx context.Context, awsCfg sdkaws.Config, resource sharedaudit.Resource) (bool, error) {
 	switch resource.ResourceType {
-	case "iam/role":
+	case resourceTypeIAMRole:
 		return true, forceDeleteIAMRole(ctx, awsCfg, resource.Name)
 	case "s3":
 		return true, forceDeleteS3Bucket(ctx, awsCfg, resource.Name)
@@ -292,45 +298,11 @@ func deleteResourceNatively(ctx context.Context, awsCfg sdkaws.Config, resource 
 
 func forceDeleteIAMRole(ctx context.Context, awsCfg sdkaws.Config, roleName string) error {
 	client := newIAMDeleteClient(awsCfg)
-	var marker *string
-	for {
-		out, err := client.ListRolePolicies(ctx, &iam.ListRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
-		if err != nil {
-			if isNotFoundError(err) {
-				return nil
-			}
-			return err
-		}
-		for _, policyName := range out.PolicyNames {
-			_, err := client.DeleteRolePolicy(ctx, &iam.DeleteRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyName: sdkaws.String(policyName)})
-			if err != nil && !isNotFoundError(err) {
-				return err
-			}
-		}
-		if !out.IsTruncated {
-			break
-		}
-		marker = out.Marker
+	if err := deleteInlineRolePolicies(ctx, client, roleName); err != nil {
+		return err
 	}
-	marker = nil
-	for {
-		out, err := client.ListAttachedRolePolicies(ctx, &iam.ListAttachedRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
-		if err != nil {
-			if isNotFoundError(err) {
-				return nil
-			}
-			return err
-		}
-		for _, policy := range out.AttachedPolicies {
-			_, err := client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyArn: policy.PolicyArn})
-			if err != nil && !isNotFoundError(err) {
-				return err
-			}
-		}
-		if !out.IsTruncated {
-			break
-		}
-		marker = out.Marker
+	if err := detachAttachedRolePolicies(ctx, client, roleName); err != nil {
+		return err
 	}
 	_, err := client.DeleteRole(ctx, &iam.DeleteRoleInput{RoleName: sdkaws.String(roleName)})
 	if err != nil && isNotFoundError(err) {
@@ -341,38 +313,137 @@ func forceDeleteIAMRole(ctx context.Context, awsCfg sdkaws.Config, roleName stri
 
 func forceDeleteS3Bucket(ctx context.Context, awsCfg sdkaws.Config, bucket string) error {
 	client := newS3DeleteClient(awsCfg)
-	var keyMarker, versionMarker *string
-	for {
-		out, err := client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: sdkaws.String(bucket), KeyMarker: keyMarker, VersionIdMarker: versionMarker})
-		if err != nil {
-			if isS3BucketMissing(err) {
-				return nil
-			}
-			return err
-		}
-		for _, version := range out.Versions {
-			_, err := client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: sdkaws.String(bucket), Key: version.Key, VersionId: version.VersionId})
-			if err != nil && !isNotFoundError(err) {
-				return err
-			}
-		}
-		for _, marker := range out.DeleteMarkers {
-			_, err := client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: sdkaws.String(bucket), Key: marker.Key, VersionId: marker.VersionId})
-			if err != nil && !isNotFoundError(err) {
-				return err
-			}
-		}
-		if !sdkaws.ToBool(out.IsTruncated) {
-			break
-		}
-		keyMarker = out.NextKeyMarker
-		versionMarker = out.NextVersionIdMarker
+	if _, _, err := deleteMatchingBucketVersions(ctx, client, bucket, ""); err != nil {
+		return err
 	}
 	_, err := client.DeleteBucket(ctx, &s3.DeleteBucketInput{Bucket: sdkaws.String(bucket)})
 	if err != nil && isS3BucketMissing(err) {
 		return nil
 	}
 	return err
+}
+
+func deleteInlineRolePolicies(ctx context.Context, client *iam.Client, roleName string) error {
+	var marker *string
+	for {
+		out, err := client.ListRolePolicies(ctx, &iam.ListRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
+		if err != nil {
+			if isNotFoundError(err) {
+				return nil
+			}
+			return err
+		}
+		for _, policyName := range out.PolicyNames {
+			if err := deleteInlineRolePolicy(ctx, client, roleName, policyName); err != nil {
+				return err
+			}
+		}
+		if !out.IsTruncated {
+			return nil
+		}
+		marker = out.Marker
+	}
+}
+
+func deleteInlineRolePolicy(ctx context.Context, client *iam.Client, roleName, policyName string) error {
+	_, err := client.DeleteRolePolicy(ctx, &iam.DeleteRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyName: sdkaws.String(policyName)})
+	if err != nil && !isNotFoundError(err) {
+		return err
+	}
+	return nil
+}
+
+func detachAttachedRolePolicies(ctx context.Context, client *iam.Client, roleName string) error {
+	var marker *string
+	for {
+		out, err := client.ListAttachedRolePolicies(ctx, &iam.ListAttachedRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
+		if err != nil {
+			if isNotFoundError(err) {
+				return nil
+			}
+			return err
+		}
+		for _, policy := range out.AttachedPolicies {
+			if err := detachAttachedRolePolicy(ctx, client, roleName, policy.PolicyArn); err != nil {
+				return err
+			}
+		}
+		if !out.IsTruncated {
+			return nil
+		}
+		marker = out.Marker
+	}
+}
+
+func detachAttachedRolePolicy(ctx context.Context, client *iam.Client, roleName string, policyArn *string) error {
+	_, err := client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyArn: policyArn})
+	if err != nil && !isNotFoundError(err) {
+		return err
+	}
+	return nil
+}
+
+func deleteMatchingBucketVersions(ctx context.Context, client stateS3API, bucket, key string) (int, int, error) {
+	deletedVersions := 0
+	deletedMarkers := 0
+	err := walkObjectVersionPages(ctx, client, bucket, key, func(out *s3.ListObjectVersionsOutput) error {
+		for _, version := range out.Versions {
+			if !matchesObjectKey(version.Key, key) {
+				continue
+			}
+			if err := deleteBucketObjectVersion(ctx, client, bucket, version.Key, version.VersionId); err != nil {
+				return err
+			}
+			deletedVersions++
+		}
+		for _, marker := range out.DeleteMarkers {
+			if !matchesObjectKey(marker.Key, key) {
+				continue
+			}
+			if err := deleteBucketObjectVersion(ctx, client, bucket, marker.Key, marker.VersionId); err != nil {
+				return err
+			}
+			deletedMarkers++
+		}
+		return nil
+	})
+	return deletedVersions, deletedMarkers, err
+}
+
+func walkObjectVersionPages(ctx context.Context, client stateS3API, bucket, prefix string, visit func(*s3.ListObjectVersionsOutput) error) error {
+	var keyMarker, versionMarker *string
+	for {
+		out, err := client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: sdkaws.String(bucket), Prefix: sdkaws.String(prefix), KeyMarker: keyMarker, VersionIdMarker: versionMarker})
+		if err != nil {
+			if isS3BucketMissing(err) {
+				return nil
+			}
+			return err
+		}
+		if err := visit(out); err != nil {
+			return err
+		}
+		if !sdkaws.ToBool(out.IsTruncated) {
+			return nil
+		}
+		keyMarker = out.NextKeyMarker
+		versionMarker = out.NextVersionIdMarker
+	}
+}
+
+func matchesObjectKey(objectKey *string, expected string) bool {
+	if expected == "" {
+		return true
+	}
+	return sdkaws.ToString(objectKey) == expected
+}
+
+func deleteBucketObjectVersion(ctx context.Context, client stateS3API, bucket string, key, versionID *string) error {
+	_, err := client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: sdkaws.String(bucket), Key: key, VersionId: versionID})
+	if err != nil && !isNotFoundError(err) {
+		return err
+	}
+	return nil
 }
 
 func parseServiceType(resourceType string) (service, fullType string) {
@@ -390,23 +461,23 @@ type cloudControlMapping struct {
 
 func cloudControlServiceMapping(service string) (cloudControlMapping, bool) {
 	mapping, ok := map[string]cloudControlMapping{
-		"sns": {cfnType: "AWS::SNS::Topic", identifier: func(_ string, arn string) string { return arn }},
-		"s3":  {cfnType: "AWS::S3::Bucket", identifier: func(name, _ string) string { return name }},
+		"sns": {cfnType: "AWS::SNS::Topic", identifier: cloudControlARNIdentifier},
+		"s3":  {cfnType: "AWS::S3::Bucket", identifier: cloudControlNameIdentifier},
 	}[service]
 	return mapping, ok
 }
 
 func cloudControlTypedMapping(service, resourceType string) (cloudControlMapping, bool) {
 	mapping, ok := map[string]cloudControlMapping{
-		"dynamodb|dynamodb/table":            {cfnType: "AWS::DynamoDB::Table", identifier: func(name, _ string) string { return name }},
-		"lambda|lambda/function":             {cfnType: "AWS::Lambda::Function", identifier: func(name, _ string) string { return name }},
-		"logs|logs/log-group":                {cfnType: "AWS::Logs::LogGroup", identifier: func(name, _ string) string { return name }},
+		"dynamodb|dynamodb/table":            {cfnType: "AWS::DynamoDB::Table", identifier: cloudControlNameIdentifier},
+		"lambda|lambda/function":             {cfnType: "AWS::Lambda::Function", identifier: cloudControlNameIdentifier},
+		"logs|logs/log-group":                {cfnType: "AWS::Logs::LogGroup", identifier: cloudControlNameIdentifier},
 		"apigatewayv2|apigatewayv2/api":      {cfnType: "AWS::ApiGatewayV2::Api", identifier: func(name, arn string) string { return apigatewayID(name, arn) }},
-		"cloudtrail|cloudtrail/trail":        {cfnType: "AWS::CloudTrail::Trail", identifier: func(name, _ string) string { return name }},
-		"acm|acm/certificate":                {cfnType: "AWS::CertificateManager::Certificate", identifier: func(_ string, arn string) string { return arn }},
+		"cloudtrail|cloudtrail/trail":        {cfnType: "AWS::CloudTrail::Trail", identifier: cloudControlNameIdentifier},
+		"acm|acm/certificate":                {cfnType: "AWS::CertificateManager::Certificate", identifier: cloudControlARNIdentifier},
 		"cloudfront|cloudfront/distribution": {cfnType: "AWS::CloudFront::Distribution", identifier: func(name, arn string) string { return cloudfrontDistributionID(name, arn) }},
 		"route53|route53/hostedzone":         {cfnType: "AWS::Route53::HostedZone", identifier: func(name, arn string) string { return route53HostedZoneID(name, arn) }},
-		"kms|kms/key":                        {cfnType: "AWS::KMS::Key", identifier: func(_ string, arn string) string { return arn }},
+		"kms|kms/key":                        {cfnType: "AWS::KMS::Key", identifier: cloudControlARNIdentifier},
 	}[service+"|"+resourceType]
 	return mapping, ok
 }
@@ -418,10 +489,18 @@ func arnToCloudControl(arn, service, resourceType, name string) (string, string)
 	if mapping, ok := cloudControlTypedMapping(service, resourceType); ok {
 		return mapping.cfnType, mapping.identifier(name, arn)
 	}
-	if service == "iam" && resourceType == "iam/role" {
+	if service == "iam" && resourceType == resourceTypeIAMRole {
 		return "AWS::IAM::Role", name
 	}
 	return "", ""
+}
+
+func cloudControlNameIdentifier(name, _ string) string {
+	return name
+}
+
+func cloudControlARNIdentifier(_, arn string) string {
+	return arn
 }
 
 func apigatewayID(name, arn string) string {
@@ -575,67 +654,18 @@ func resetBackendStateForNuke(ctx context.Context, opts FallbackOptions, backupD
 	dynamoClient := newDynamoDeleteClient(opts.AWSConfig)
 	summary := backendResetSummary{BucketName: cfg.BucketName, TableName: cfg.TableName, StateKey: cfg.StateKey, BackupDir: backupDir}
 
-	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+	if err := backupBackendState(ctx, s3Client, dynamoClient, cfg, backupDir, &summary); err != nil {
 		return backendResetSummary{}, err
 	}
-	if err := backupStateVersions(ctx, s3Client, cfg.BucketName, cfg.StateKey, filepath.Join(backupDir, "s3")); err != nil {
-		return backendResetSummary{}, err
-	}
-	lockItems, err := backupLockEntries(ctx, dynamoClient, cfg.TableName, cfg.StateKey, filepath.Join(backupDir, "dynamodb", "locks.json"))
+	summary.DeletedStateVersions, summary.DeletedDeleteMarkers, err = deleteMatchingBucketVersions(ctx, s3Client, cfg.BucketName, cfg.StateKey)
 	if err != nil {
 		return backendResetSummary{}, err
 	}
-	summary.DeletedLockEntries = len(lockItems)
-
-	var keyMarker, versionMarker *string
-	for {
-		out, err := s3Client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: sdkaws.String(cfg.BucketName), Prefix: sdkaws.String(cfg.StateKey), KeyMarker: keyMarker, VersionIdMarker: versionMarker})
-		if err != nil {
-			if isS3BucketMissing(err) {
-				break
-			}
-			return backendResetSummary{}, err
-		}
-		for _, version := range out.Versions {
-			if sdkaws.ToString(version.Key) != cfg.StateKey {
-				continue
-			}
-			_, err := s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: sdkaws.String(cfg.BucketName), Key: version.Key, VersionId: version.VersionId})
-			if err != nil && !isNotFoundError(err) {
-				return backendResetSummary{}, err
-			}
-			summary.DeletedStateVersions++
-		}
-		for _, marker := range out.DeleteMarkers {
-			if sdkaws.ToString(marker.Key) != cfg.StateKey {
-				continue
-			}
-			_, err := s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: sdkaws.String(cfg.BucketName), Key: marker.Key, VersionId: marker.VersionId})
-			if err != nil && !isNotFoundError(err) {
-				return backendResetSummary{}, err
-			}
-			summary.DeletedDeleteMarkers++
-		}
-		if !sdkaws.ToBool(out.IsTruncated) {
-			break
-		}
-		keyMarker = out.NextKeyMarker
-		versionMarker = out.NextVersionIdMarker
+	if err := deleteLockEntries(ctx, dynamoClient, cfg.TableName, cfg.StateKey); err != nil {
+		return backendResetSummary{}, err
 	}
-
-	for _, item := range lockItems {
-		lockID, ok := item["LockID"].(*dbtypes.AttributeValueMemberS)
-		if !ok {
-			continue
-		}
-		_, err := dynamoClient.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: sdkaws.String(cfg.TableName), Key: map[string]dbtypes.AttributeValue{"LockID": &dbtypes.AttributeValueMemberS{Value: lockID.Value}}})
-		if err != nil && !isNotFoundError(err) {
-			return backendResetSummary{}, err
-		}
-	}
-
-	if err := os.RemoveAll(filepath.Join(opts.Stack, ".terraform")); err == nil {
-		summary.RemovedLocalTerraform = true
+	if err := removeTerraformCache(filepath.Join(opts.Stack, ".terraform"), &summary); err != nil {
+		return backendResetSummary{}, err
 	}
 	return summary, nil
 }
@@ -644,39 +674,28 @@ func backupStateVersions(ctx context.Context, client stateS3API, bucket, key, di
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	var keyMarker, versionMarker *string
 	index := 0
 	manifest := []map[string]any{}
-	for {
-		out, err := client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: sdkaws.String(bucket), Prefix: sdkaws.String(key), KeyMarker: keyMarker, VersionIdMarker: versionMarker})
-		if err != nil {
-			if isS3BucketMissing(err) {
-				break
-			}
-			return err
-		}
+	if err := walkObjectVersionPages(ctx, client, bucket, key, func(out *s3.ListObjectVersionsOutput) error {
 		for _, version := range out.Versions {
 			if sdkaws.ToString(version.Key) != key {
 				continue
 			}
 			index++
-			name := fmt.Sprintf("state-%06d.tfstate", index)
-			if err := downloadBucketVersion(ctx, client, bucket, key, sdkaws.ToString(version.VersionId), filepath.Join(dir, name)); err != nil {
+			entry, err := backupStateVersion(ctx, client, bucket, key, dir, index, version)
+			if err != nil {
 				return err
 			}
-			manifest = append(manifest, map[string]any{"file": name, "key": key, "version_id": sdkaws.ToString(version.VersionId), "is_latest": sdkaws.ToBool(version.IsLatest)})
+			manifest = append(manifest, entry)
 		}
 		for _, marker := range out.DeleteMarkers {
-			if sdkaws.ToString(marker.Key) != key {
-				continue
+			if sdkaws.ToString(marker.Key) == key {
+				manifest = append(manifest, deleteMarkerManifestEntry(key, marker))
 			}
-			manifest = append(manifest, map[string]any{"delete_marker": true, "key": key, "version_id": sdkaws.ToString(marker.VersionId), "is_latest": sdkaws.ToBool(marker.IsLatest)})
 		}
-		if !sdkaws.ToBool(out.IsTruncated) {
-			break
-		}
-		keyMarker = out.NextKeyMarker
-		versionMarker = out.NextVersionIdMarker
+		return nil
+	}); err != nil {
+		return err
 	}
 	return writeJSONFile(filepath.Join(dir, "manifest.json"), manifest)
 }
@@ -701,40 +720,13 @@ func downloadBucketVersion(ctx context.Context, client stateS3API, bucket, key, 
 }
 
 func backupLockEntries(ctx context.Context, client stateDynamoAPI, table, key, target string) ([]map[string]dbtypes.AttributeValue, error) {
-	_, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: sdkaws.String(table)})
+	items, err := scanLockEntries(ctx, client, table, key)
 	if err != nil {
-		var notFound *dbtypes.ResourceNotFoundException
-		if errors.As(err, &notFound) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var items []map[string]dbtypes.AttributeValue
-	var startKey map[string]dbtypes.AttributeValue
-	for {
-		out, err := client.Scan(ctx, &dynamodb.ScanInput{TableName: sdkaws.String(table), ExclusiveStartKey: startKey})
-		if err != nil {
-			return nil, err
-		}
-		for _, item := range out.Items {
-			member, ok := item["LockID"].(*dbtypes.AttributeValueMemberS)
-			if !ok || member.Value != key {
-				continue
-			}
-			items = append(items, item)
-		}
-		if len(out.LastEvaluatedKey) == 0 {
-			break
-		}
-		startKey = out.LastEvaluatedKey
-	}
-	serializable := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		var decoded map[string]any
-		if err := attributevalue.UnmarshalMap(item, &decoded); err != nil {
-			return nil, err
-		}
-		serializable = append(serializable, decoded)
+	serializable, err := marshalLockEntries(items)
+	if err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return nil, err
@@ -777,4 +769,116 @@ func countPart(partFn func(string, int) string, label string, value int) string 
 		return partFn(label, value)
 	}
 	return label + "=" + strconv.Itoa(value)
+}
+
+func formatPurgeError(resource sharedaudit.Resource, err error) string {
+	return fmt.Sprintf(purgeErrorFormat, resource.ResourceType, resource.Name, err)
+}
+
+func backupBackendState(ctx context.Context, s3Client stateS3API, dynamoClient stateDynamoAPI, cfg backendStateConfig, backupDir string, summary *backendResetSummary) error {
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		return err
+	}
+	if err := backupStateVersions(ctx, s3Client, cfg.BucketName, cfg.StateKey, filepath.Join(backupDir, "s3")); err != nil {
+		return err
+	}
+	lockItems, err := backupLockEntries(ctx, dynamoClient, cfg.TableName, cfg.StateKey, filepath.Join(backupDir, "dynamodb", "locks.json"))
+	if err != nil {
+		return err
+	}
+	summary.DeletedLockEntries = len(lockItems)
+	return nil
+}
+
+func deleteLockEntries(ctx context.Context, client stateDynamoAPI, table, key string) error {
+	items, err := scanLockEntries(ctx, client, table, key)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		lockID, ok := item["LockID"].(*dbtypes.AttributeValueMemberS)
+		if !ok {
+			continue
+		}
+		_, err := client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: sdkaws.String(table), Key: map[string]dbtypes.AttributeValue{"LockID": &dbtypes.AttributeValueMemberS{Value: lockID.Value}}})
+		if err != nil && !isNotFoundError(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeTerraformCache(path string, summary *backendResetSummary) error {
+	if err := os.RemoveAll(path); err != nil {
+		return err
+	}
+	summary.RemovedLocalTerraform = true
+	return nil
+}
+
+func backupStateVersion(ctx context.Context, client stateS3API, bucket, key, dir string, index int, version s3types.ObjectVersion) (map[string]any, error) {
+	name := fmt.Sprintf(purgeStateFileFormat, index)
+	if err := downloadBucketVersion(ctx, client, bucket, key, sdkaws.ToString(version.VersionId), filepath.Join(dir, name)); err != nil {
+		return nil, err
+	}
+	return map[string]any{"file": name, "key": key, "version_id": sdkaws.ToString(version.VersionId), "is_latest": sdkaws.ToBool(version.IsLatest)}, nil
+}
+
+func deleteMarkerManifestEntry(key string, marker s3types.DeleteMarkerEntry) map[string]any {
+	return map[string]any{"delete_marker": true, "key": key, "version_id": sdkaws.ToString(marker.VersionId), "is_latest": sdkaws.ToBool(marker.IsLatest)}
+}
+
+func scanLockEntries(ctx context.Context, client stateDynamoAPI, table, key string) ([]map[string]dbtypes.AttributeValue, error) {
+	if err := ensureLockTableExists(ctx, client, table); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	items := make([]map[string]dbtypes.AttributeValue, 0)
+	var startKey map[string]dbtypes.AttributeValue
+	for {
+		out, err := client.Scan(ctx, &dynamodb.ScanInput{TableName: sdkaws.String(table), ExclusiveStartKey: startKey})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range out.Items {
+			if lockEntryMatches(item, key) {
+				items = append(items, item)
+			}
+		}
+		if len(out.LastEvaluatedKey) == 0 {
+			return items, nil
+		}
+		startKey = out.LastEvaluatedKey
+	}
+}
+
+func ensureLockTableExists(ctx context.Context, client stateDynamoAPI, table string) error {
+	_, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: sdkaws.String(table)})
+	if err == nil {
+		return nil
+	}
+	var notFound *dbtypes.ResourceNotFoundException
+	if errors.As(err, &notFound) {
+		return os.ErrNotExist
+	}
+	return err
+}
+
+func lockEntryMatches(item map[string]dbtypes.AttributeValue, key string) bool {
+	member, ok := item["LockID"].(*dbtypes.AttributeValueMemberS)
+	return ok && member.Value == key
+}
+
+func marshalLockEntries(items []map[string]dbtypes.AttributeValue) ([]map[string]any, error) {
+	serializable := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		var decoded map[string]any
+		if err := attributevalue.UnmarshalMap(item, &decoded); err != nil {
+			return nil, err
+		}
+		serializable = append(serializable, decoded)
+	}
+	return serializable, nil
 }

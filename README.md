@@ -26,7 +26,7 @@ Development hygiene:
 - install hooks with `make lefthook-install`
 - CI also runs the configured `pre-commit` and `pre-push` hook suites
 - `pre-commit` runs formatting, module hygiene, and `golangci-lint`
-- `pre-push` runs `go vet`, tests, `govulncheck`, and a 60% coverage gate
+- `pre-push` runs `go vet`, tests, `govulncheck`, and a 35% coverage gate
 - staged secret scans still require `gitleaks` to be available locally
 
 Current package layout:

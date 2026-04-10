@@ -56,7 +56,9 @@ func TestNewRootSkipsAWSForLocalCommands(t *testing.T) {
 	cmd.AddCommand(&cobra.Command{
 		Use:         "version",
 		Annotations: map[string]string{LocalCommandAnnotation: "true"},
-		Run:         func(*cobra.Command, []string) {},
+		Run: func(*cobra.Command, []string) {
+			// Intentionally empty: this test only exercises the local-command auth bypass.
+		},
 	})
 	cmd.SetArgs([]string{"version"})
 	if code := Execute(cmd, &bytes.Buffer{}); code != 0 {
@@ -90,7 +92,9 @@ func TestNewRootRunsAuthFlowAndPublishesRuntime(t *testing.T) {
 			return nil
 		},
 	})
-	cmd.AddCommand(&cobra.Command{Use: "plan", Run: func(*cobra.Command, []string) {}})
+	cmd.AddCommand(&cobra.Command{Use: "plan", Run: func(*cobra.Command, []string) {
+		// Intentionally empty: this test asserts the pre-run auth flow populates runtime state.
+	}})
 	cmd.SetArgs([]string{"plan"})
 	if code := Execute(cmd, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)

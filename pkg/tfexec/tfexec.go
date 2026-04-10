@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	StackDirName = "stack"
-	EnvsDirName  = "envs"
+	StackDirName     = "stack"
+	EnvsDirName      = "envs"
+	varFileArgPrefix = "-var-file="
 )
 
 type RunOptions struct {
@@ -75,10 +76,10 @@ func VarFileArgs(stackPath, root, env string) []string {
 		}
 		return rel
 	}
-	args := []string{"-var-file=" + relPath("fetched.auto.tfvars.json"), "-var-file=" + relPath("terraform.tfvars")}
+	args := []string{varFileArgPrefix + relPath("fetched.auto.tfvars.json"), varFileArgPrefix + relPath("terraform.tfvars")}
 	fetchedAbs := filepath.Join(envsDir, "fetched.auto.tfvars.json")
 	if _, err := os.Stat(fetchedAbs); err != nil {
-		args = []string{"-var-file=" + relPath("terraform.tfvars")}
+		args = []string{varFileArgPrefix + relPath("terraform.tfvars")}
 	}
 	return args
 }

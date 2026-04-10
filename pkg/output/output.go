@@ -40,7 +40,7 @@ func (o *CommandOutput) Summary(title string, parts ...string) {
 	o.Line(title + ": " + strings.Join(filtered, "  "))
 }
 
-func (o *CommandOutput) Status(_kind, label, detail string) {
+func (o *CommandOutput) Status(_, label, detail string) {
 	o.Line("[" + label + "] " + detail)
 }
 

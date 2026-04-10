@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+const (
+	backendEnvCheckKey     = "contract.backend-env"
+	backendLocalCheckKey   = "contract.backend-local"
+	backendLocalCheckTitle = "backend.local.hcl override"
+	fetchedVarsCheckKey    = "contract.fetched-vars"
+)
+
 func ParseSimpleAssignments(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -65,7 +72,7 @@ func CheckEnvBackendFile(path, env string) Check {
 	values, err := ParseSimpleAssignments(path)
 	if err != nil {
 		return Check{
-			Key:      "contract.backend-env",
+			Key:      backendEnvCheckKey,
 			Title:    "environment backend.hcl is readable",
 			Status:   "fail",
 			Detail:   err.Error(),
@@ -75,7 +82,7 @@ func CheckEnvBackendFile(path, env string) Check {
 	}
 	if strings.TrimSpace(values["key"]) == "" {
 		return Check{
-			Key:      "contract.backend-env",
+			Key:      backendEnvCheckKey,
 			Title:    "environment backend.hcl contains the state key",
 			Status:   "fail",
 			Detail:   "missing required key entry",
@@ -84,7 +91,7 @@ func CheckEnvBackendFile(path, env string) Check {
 		}
 	}
 	return Check{
-		Key:    "contract.backend-env",
+		Key:    backendEnvCheckKey,
 		Title:  "environment backend.hcl contains the state key",
 		Status: "ok",
 		Detail: "state key is configured for env " + env,
@@ -94,8 +101,8 @@ func CheckEnvBackendFile(path, env string) Check {
 func CheckOptionalBackendLocal(path string) Check {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return Check{
-			Key:    "contract.backend-local",
-			Title:  "backend.local.hcl override",
+			Key:    backendLocalCheckKey,
+			Title:  backendLocalCheckTitle,
 			Status: "info",
 			Detail: "no local override present",
 			Hint:   "this is optional; create it only when overriding backend bucket, lock table, or region",
@@ -104,8 +111,8 @@ func CheckOptionalBackendLocal(path string) Check {
 	values, err := ParseSimpleAssignments(path)
 	if err != nil {
 		return Check{
-			Key:      "contract.backend-local",
-			Title:    "backend.local.hcl override",
+			Key:      backendLocalCheckKey,
+			Title:    backendLocalCheckTitle,
 			Status:   "fail",
 			Detail:   err.Error(),
 			Hint:     "fix or remove stack/backend.local.hcl before retrying",
@@ -121,8 +128,8 @@ func CheckOptionalBackendLocal(path string) Check {
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return Check{
-			Key:      "contract.backend-local",
-			Title:    "backend.local.hcl override",
+			Key:      backendLocalCheckKey,
+			Title:    backendLocalCheckTitle,
 			Status:   "fail",
 			Detail:   "missing required keys: " + strings.Join(missing, ", "),
 			Hint:     "either populate all override keys or remove stack/backend.local.hcl",
@@ -130,8 +137,8 @@ func CheckOptionalBackendLocal(path string) Check {
 		}
 	}
 	return Check{
-		Key:    "contract.backend-local",
-		Title:  "backend.local.hcl override",
+		Key:    backendLocalCheckKey,
+		Title:  backendLocalCheckTitle,
 		Status: "ok",
 		Detail: "override is complete",
 	}
@@ -142,7 +149,7 @@ func CheckFetchedVars(path, env string) Check {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Check{
-				Key:    "contract.fetched-vars",
+				Key:    fetchedVarsCheckKey,
 				Title:  "fetched platform config is present",
 				Status: "warn",
 				Detail: "envs/" + env + "/fetched.auto.tfvars.json is missing",
@@ -150,7 +157,7 @@ func CheckFetchedVars(path, env string) Check {
 			}
 		}
 		return Check{
-			Key:      "contract.fetched-vars",
+			Key:      fetchedVarsCheckKey,
 			Title:    "fetched platform config is present",
 			Status:   "fail",
 			Detail:   err.Error(),
@@ -161,7 +168,7 @@ func CheckFetchedVars(path, env string) Check {
 	var parsed any
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return Check{
-			Key:      "contract.fetched-vars",
+			Key:      fetchedVarsCheckKey,
 			Title:    "fetched platform config is valid JSON",
 			Status:   "fail",
 			Detail:   err.Error(),
@@ -170,7 +177,7 @@ func CheckFetchedVars(path, env string) Check {
 		}
 	}
 	return Check{
-		Key:    "contract.fetched-vars",
+		Key:    fetchedVarsCheckKey,
 		Title:  "fetched platform config is valid JSON",
 		Status: "ok",
 		Detail: filepath.Base(path) + " is readable",

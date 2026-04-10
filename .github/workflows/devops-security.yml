@@ -41,7 +41,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
-      go-version: "1.25.8"
+      go-version: "1.25.9"
       working-directory: "."
 
   semgrep:

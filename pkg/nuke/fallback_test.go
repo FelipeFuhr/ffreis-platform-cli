@@ -11,14 +11,14 @@ func TestOwnedResourcesForFallbackSortsByPriority(t *testing.T) {
 	resources := []sharedaudit.Resource{
 		{Status: "OWNED", ResourceType: "lambda/function", Name: "zeta"},
 		{Status: "OWNED", ResourceType: "s3", Name: "bucket"},
-		{Status: "OTHER_MANAGED", ResourceType: "iam/role", Name: "skip"},
-		{Status: "OWNED", ResourceType: "iam/role", Name: "role"},
+		{Status: "OTHER_MANAGED", ResourceType: resourceTypeIAMRole, Name: "skip"},
+		{Status: "OWNED", ResourceType: resourceTypeIAMRole, Name: "role"},
 	}
 	owned := ownedResourcesForFallback(resources)
 	if len(owned) != 3 {
 		t.Fatalf("len = %d, want 3", len(owned))
 	}
-	if owned[0].ResourceType != "lambda/function" || owned[1].ResourceType != "iam/role" || owned[2].ResourceType != "s3" {
+	if owned[0].ResourceType != "lambda/function" || owned[1].ResourceType != resourceTypeIAMRole || owned[2].ResourceType != "s3" {
 		t.Fatalf("unexpected order: %#v", owned)
 	}
 }

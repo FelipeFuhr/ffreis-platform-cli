@@ -25,7 +25,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-mod-tidy-check.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
-      go-version: "1.25.8"
+      go-version: "1.25.9"
       working-directory: "."
 
   fmt:
@@ -33,7 +33,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
-      go-version: "1.25.8"
+      go-version: "1.25.9"
       working-directory: "."
 
   lint:
@@ -49,7 +49,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25.8"
+          go-version: "1.25.9"
           cache: true
 
       - name: go vet
@@ -68,5 +68,5 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
-      go-version: "1.25.8"
+      go-version: "1.25.9"
       working-directory: "."
