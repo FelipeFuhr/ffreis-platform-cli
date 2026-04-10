@@ -387,27 +387,41 @@ func deleteMatchingBucketVersions(ctx context.Context, client stateS3API, bucket
 	deletedVersions := 0
 	deletedMarkers := 0
 	err := walkObjectVersionPages(ctx, client, bucket, key, func(out *s3.ListObjectVersionsOutput) error {
-		for _, version := range out.Versions {
-			if !matchesObjectKey(version.Key, key) {
-				continue
-			}
-			if err := deleteBucketObjectVersion(ctx, client, bucket, version.Key, version.VersionId); err != nil {
-				return err
-			}
-			deletedVersions++
+		var err error
+		deletedVersions, err = deleteBucketVersionsPage(ctx, client, bucket, key, out.Versions, deletedVersions)
+		if err != nil {
+			return err
 		}
-		for _, marker := range out.DeleteMarkers {
-			if !matchesObjectKey(marker.Key, key) {
-				continue
-			}
-			if err := deleteBucketObjectVersion(ctx, client, bucket, marker.Key, marker.VersionId); err != nil {
-				return err
-			}
-			deletedMarkers++
-		}
-		return nil
+		deletedMarkers, err = deleteBucketDeleteMarkersPage(ctx, client, bucket, key, out.DeleteMarkers, deletedMarkers)
+		return err
 	})
 	return deletedVersions, deletedMarkers, err
+}
+
+func deleteBucketVersionsPage(ctx context.Context, client stateS3API, bucket, key string, versions []s3types.ObjectVersion, deleted int) (int, error) {
+	for _, version := range versions {
+		if !matchesObjectKey(version.Key, key) {
+			continue
+		}
+		if err := deleteBucketObjectVersion(ctx, client, bucket, version.Key, version.VersionId); err != nil {
+			return deleted, err
+		}
+		deleted++
+	}
+	return deleted, nil
+}
+
+func deleteBucketDeleteMarkersPage(ctx context.Context, client stateS3API, bucket, key string, markers []s3types.DeleteMarkerEntry, deleted int) (int, error) {
+	for _, marker := range markers {
+		if !matchesObjectKey(marker.Key, key) {
+			continue
+		}
+		if err := deleteBucketObjectVersion(ctx, client, bucket, marker.Key, marker.VersionId); err != nil {
+			return deleted, err
+		}
+		deleted++
+	}
+	return deleted, nil
 }
 
 func walkObjectVersionPages(ctx context.Context, client stateS3API, bucket, prefix string, visit func(*s3.ListObjectVersionsOutput) error) error {

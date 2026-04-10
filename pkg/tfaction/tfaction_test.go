@@ -2,6 +2,7 @@ package tfaction
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -61,6 +62,63 @@ func TestRunApplyUsesPlanFile(t *testing.T) {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 	wantArgs := []string{"apply", "../envs/prod/tfplan", "-auto-approve"}
+	if !reflect.DeepEqual(captured.Args, wantArgs) {
+		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
+	}
+}
+
+func TestRunPlanEnsureInitError(t *testing.T) {
+	wantErr := errors.New("init failed")
+	_, err := RunPlan(context.Background(), PlanOptions{
+		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
+			return wantErr
+		},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected init error, got %v", err)
+	}
+}
+
+func TestRunPlanRunTerraformError(t *testing.T) {
+	wantErr := errors.New("terraform failed")
+	_, err := RunPlan(context.Background(), PlanOptions{
+		Root:  "/repo",
+		Stack: "/repo/stack",
+		Env:   "prod",
+		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
+			return nil
+		},
+		RunTerraform: func(context.Context, tfexec.RunOptions) (int, error) {
+			return 1, wantErr
+		},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected terraform error, got %v", err)
+	}
+}
+
+func TestRunApplyWithoutPlanFileUsesVarArgs(t *testing.T) {
+	var captured tfexec.RunOptions
+	result, err := RunApply(context.Background(), ApplyOptions{
+		Root:  "/repo",
+		Stack: "/repo/stack",
+		Env:   "prod",
+		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
+			return nil
+		},
+		RunTerraform: func(_ context.Context, opts tfexec.RunOptions) (int, error) {
+			captured = opts
+			return 0, nil
+		},
+		ExtraArgs: []string{"-lock=false"},
+	})
+	if err != nil {
+		t.Fatalf("RunApply() error = %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	wantArgs := []string{"apply", "-var-file=../envs/prod/terraform.tfvars", "-lock=false"}
 	if !reflect.DeepEqual(captured.Args, wantArgs) {
 		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
 	}

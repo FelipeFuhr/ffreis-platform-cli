@@ -10,14 +10,21 @@ import (
 	"github.com/ffreis/platform-cli/pkg/auth"
 )
 
+const (
+	errMkdirEnvFormat          = "mkdir env: %v"
+	errMkdirStackFormat        = "mkdir stack: %v"
+	testStdoutText             = "stdout text"
+	errUnexpectedMessageFormat = "unexpected message: %q"
+)
+
 func TestVarFileArgsFallsBackWithoutFetchedVars(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
 	if err := os.MkdirAll(filepath.Join(root, EnvsDirName, "prod"), 0o755); err != nil {
-		t.Fatalf("mkdir env: %v", err)
+		t.Fatalf(errMkdirEnvFormat, err)
 	}
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	args := VarFileArgs(stack, root, "prod")
 	if len(args) != 1 || args[0] != "-var-file=../envs/prod/terraform.tfvars" {
@@ -30,10 +37,10 @@ func TestVarFileArgsIncludesFetchedVarsWhenPresent(t *testing.T) {
 	stack := filepath.Join(root, StackDirName)
 	envDir := filepath.Join(root, EnvsDirName, "prod")
 	if err := os.MkdirAll(envDir, 0o755); err != nil {
-		t.Fatalf("mkdir env: %v", err)
+		t.Fatalf(errMkdirEnvFormat, err)
 	}
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	// Create fetched.auto.tfvars.json to include it in args
 	fetchedFile := filepath.Join(envDir, "fetched.auto.tfvars.json")
@@ -53,26 +60,26 @@ func TestVarFileArgsIncludesFetchedVarsWhenPresent(t *testing.T) {
 }
 
 func TestTerraformCommandErrorPrefersStderr(t *testing.T) {
-	if got := TerraformCommandError("stdout text", "stderr text"); got != "stderr text" {
-		t.Fatalf("unexpected message: %q", got)
+	if got := TerraformCommandError(testStdoutText, "stderr text"); got != "stderr text" {
+		t.Fatalf(errUnexpectedMessageFormat, got)
 	}
 }
 
 func TestTerraformCommandErrorFallsBackToStdout(t *testing.T) {
-	if got := TerraformCommandError("stdout text", ""); got != "stdout text" {
-		t.Fatalf("unexpected message: %q", got)
+	if got := TerraformCommandError(testStdoutText, ""); got != testStdoutText {
+		t.Fatalf(errUnexpectedMessageFormat, got)
 	}
 }
 
 func TestTerraformCommandErrorTrimsWhitespace(t *testing.T) {
 	if got := TerraformCommandError("  stdout  ", "  "); got != "stdout" {
-		t.Fatalf("unexpected message: %q", got)
+		t.Fatalf(errUnexpectedMessageFormat, got)
 	}
 }
 
 func TestTerraformCommandErrorDefaultWhenEmpty(t *testing.T) {
 	if got := TerraformCommandError("", ""); got != "no output" {
-		t.Fatalf("unexpected message: %q", got)
+		t.Fatalf(errUnexpectedMessageFormat, got)
 	}
 }
 
@@ -80,7 +87,7 @@ func TestBackendArgsIncludesLocalConfigWhenPresent(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	// Create backend.local.hcl override
 	localBackendFile := filepath.Join(stack, "backend.local.hcl")
@@ -103,7 +110,7 @@ func TestBackendArgsExcludesLocalConfigWhenMissing(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	args := BackendArgs(stack, root, "prod")
 	if len(args) != 1 {
@@ -133,10 +140,10 @@ func TestVarFileArgsRelativePathHandling(t *testing.T) {
 	stack := filepath.Join(root, StackDirName)
 	envDir := filepath.Join(root, EnvsDirName, "staging")
 	if err := os.MkdirAll(envDir, 0o755); err != nil {
-		t.Fatalf("mkdir env: %v", err)
+		t.Fatalf(errMkdirEnvFormat, err)
 	}
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	args := VarFileArgs(stack, root, "staging")
 	// Should produce relative paths like ../envs/staging/terraform.tfvars
@@ -154,7 +161,7 @@ func TestStackDir(t *testing.T) {
 	}
 	stackDir := filepath.Join(root, StackDirName)
 	if err := os.Mkdir(stackDir, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 
 	// Change to the root directory for the test
@@ -203,10 +210,10 @@ func TestTerraformInitWithSuccess(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
 	if err := os.MkdirAll(filepath.Join(root, EnvsDirName, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
+		t.Fatalf(errMkdirEnvFormat, err)
 	}
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 
 	// Create a mock backend.hcl
@@ -229,10 +236,10 @@ func TestEnsureInitWhenNotInitialised(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("mkdir stack: %v", err)
+		t.Fatalf(errMkdirStackFormat, err)
 	}
 	if err := os.MkdirAll(filepath.Join(root, EnvsDirName, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir env: %v", err)
+		t.Fatalf(errMkdirEnvFormat, err)
 	}
 	backendFile := filepath.Join(root, EnvsDirName, "test", "backend.hcl")
 	if err := os.WriteFile(backendFile, []byte("bucket = \"test\""), 0o644); err != nil {

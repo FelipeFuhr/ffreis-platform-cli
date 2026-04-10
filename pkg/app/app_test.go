@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 )
 
 type fakeSTSClient struct{}
+
+type testContextKey string
+
+const appTestContextKey testContextKey = "key"
 
 func (fakeSTSClient) GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error) {
 	return &sts.GetCallerIdentityOutput{Account: sdkaws.String("123456789012"), Arn: sdkaws.String("arn:aws:sts::123456789012:assumed-role/example/session")}, nil
@@ -110,3 +115,51 @@ func TestNewRootRunsAuthFlowAndPublishesRuntime(t *testing.T) {
 type assertErr struct{}
 
 func (assertErr) Error() string { return "boom" }
+
+func TestResolveRootDependenciesDefaults(t *testing.T) {
+	deps := resolveRootDependencies(Options{Use: "example"})
+	if deps.annotationKey != LocalCommandAnnotation {
+		t.Fatalf("unexpected annotation key: %q", deps.annotationKey)
+	}
+	if deps.sessionName != "example-cli" {
+		t.Fatalf("unexpected session name: %q", deps.sessionName)
+	}
+	if deps.loadAWSConfig == nil || deps.newSTSClient == nil || deps.assumeRoleFunc == nil {
+		t.Fatal("expected default dependencies to be populated")
+	}
+}
+
+func TestPrepareRootContext(t *testing.T) {
+	cmd := &cobra.Command{}
+	baseCtx := context.WithValue(context.Background(), appTestContextKey, "base")
+	cmd.SetContext(baseCtx)
+
+	validated, err := prepareRootContext(cmd, Options{ValidateEnv: func(string) error { return nil }}, "prod")
+	if err != nil || validated != baseCtx {
+		t.Fatalf("unexpected validated context result: ctx=%v err=%v", validated, err)
+	}
+
+	wantErr := errors.New("bad env")
+	_, err = prepareRootContext(cmd, Options{ValidateEnv: func(string) error { return wantErr }}, "prod")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+
+	replacedCtx := context.WithValue(baseCtx, appTestContextKey, "replaced")
+	got, err := prepareRootContext(cmd, Options{BeforeAuth: func(context.Context, *cobra.Command) (context.Context, error) {
+		return replacedCtx, nil
+	}}, "prod")
+	if err != nil || got != replacedCtx || cmd.Context() != replacedCtx {
+		t.Fatalf("unexpected replaced context result: ctx=%v cmdCtx=%v err=%v", got, cmd.Context(), err)
+	}
+}
+
+func TestShouldSkipAuth(t *testing.T) {
+	cmd := &cobra.Command{Annotations: map[string]string{LocalCommandAnnotation: "true"}}
+	if !shouldSkipAuth(cmd, LocalCommandAnnotation) {
+		t.Fatal("expected auth skip for local command")
+	}
+	if shouldSkipAuth(&cobra.Command{}, LocalCommandAnnotation) {
+		t.Fatal("expected auth not to be skipped")
+	}
+}

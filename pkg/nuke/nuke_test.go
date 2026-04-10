@@ -59,3 +59,43 @@ func TestRunDestroyUsesFailureHandler(t *testing.T) {
 		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
 	}
 }
+
+func TestConfirmNoInput(t *testing.T) {
+	ok, err := Confirm(bytes.NewBuffer(nil), nil, "nuke-prod")
+	if err == nil || ok {
+		t.Fatalf("expected no-input error, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestRunDestroyInitError(t *testing.T) {
+	wantErr := errors.New("init failed")
+	err := RunDestroy(context.Background(), DestroyOptions{
+		Env:           "prod",
+		ConfirmReader: bytes.NewBufferString("nuke-prod\n"),
+		Init: func(context.Context, string, string, string, auth.RawCreds) error {
+			return wantErr
+		},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected init error, got %v", err)
+	}
+}
+
+func TestRunDestroySuccess(t *testing.T) {
+	err := RunDestroy(context.Background(), DestroyOptions{
+		Root:          "/repo",
+		Stack:         "/repo/stack",
+		Env:           "prod",
+		Creds:         auth.RawCreds{},
+		ConfirmReader: bytes.NewBufferString("nuke-prod\n"),
+		Init: func(context.Context, string, string, string, auth.RawCreds) error {
+			return nil
+		},
+		RunTerraform: func(_ context.Context, opts tfexec.RunOptions) (int, error) {
+			return 0, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

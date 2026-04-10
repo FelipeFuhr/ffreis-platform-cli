@@ -15,6 +15,12 @@ import (
 
 const testRegion = "us-east-1"
 
+const (
+	testSessionName      = "test-session"
+	testRegionUSWest2    = "us-west-2"
+	testRegionEUCentral1 = "eu-central-1"
+)
+
 func TestRawCredsToEnv(t *testing.T) {
 	creds := RawCreds{AccessKeyID: "AKIA", SecretAccessKey: "secret", SessionToken: "token", Region: testRegion}
 	env := creds.ToEnv()
@@ -34,7 +40,7 @@ func TestLoadAWSConfigRequiresCredentials(t *testing.T) {
 
 func TestAssumeAdminRoleRejectsRoot(t *testing.T) {
 	cfg := sdkaws.Config{Region: testRegion, Credentials: credentials.NewStaticCredentialsProvider("ROOT", "secret", "token")}
-	_, _, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:root", "123456789012", testRegion, "test-session", nil)
+	_, _, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:root", "123456789012", testRegion, testSessionName, nil)
 	if err == nil || !strings.Contains(err.Error(), "root AWS credentials are not permitted") {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,7 +48,7 @@ func TestAssumeAdminRoleRejectsRoot(t *testing.T) {
 
 func TestAssumeAdminRoleSkipsAssumeWhenAlreadyPlatformAdmin(t *testing.T) {
 	cfg := sdkaws.Config{Region: testRegion, Credentials: credentials.NewStaticCredentialsProvider("AKIA", "secret", "token")}
-	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:assumed-role/platform-admin/user", "123456789012", testRegion, "test-session", nil)
+	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:assumed-role/platform-admin/user", "123456789012", testRegion, testSessionName, nil)
 	if err != nil {
 		t.Fatalf("AssumeAdminRole() error = %v", err)
 	}
@@ -72,7 +78,7 @@ func TestAssumeAdminRoleCallsSTS(t *testing.T) {
 			},
 		}
 	}
-	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:user/service", "123456789012", testRegion, "test-session", mockSTS)
+	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:user/service", "123456789012", testRegion, testSessionName, mockSTS)
 	if err != nil {
 		t.Fatalf("AssumeAdminRole() error = %v", err)
 	}
@@ -125,24 +131,24 @@ func TestRawCredsToEnvCompleteness(t *testing.T) {
 	}{
 		{
 			"full creds",
-			RawCreds{AccessKeyID: "AKIA123", SecretAccessKey: "secret", SessionToken: "token", Region: "us-west-2"},
+			RawCreds{AccessKeyID: "AKIA123", SecretAccessKey: "secret", SessionToken: "token", Region: testRegionUSWest2},
 			map[string]string{
 				"AWS_ACCESS_KEY_ID":     "AKIA123",
 				"AWS_SECRET_ACCESS_KEY": "secret",
 				"AWS_SESSION_TOKEN":     "token",
-				"AWS_REGION":            "us-west-2",
-				"AWS_DEFAULT_REGION":    "us-west-2",
+				"AWS_REGION":            testRegionUSWest2,
+				"AWS_DEFAULT_REGION":    testRegionUSWest2,
 			},
 		},
 		{
 			"no session token",
-			RawCreds{AccessKeyID: "AKIA123", SecretAccessKey: "secret", Region: "eu-central-1"},
+			RawCreds{AccessKeyID: "AKIA123", SecretAccessKey: "secret", Region: testRegionEUCentral1},
 			map[string]string{
 				"AWS_ACCESS_KEY_ID":     "AKIA123",
 				"AWS_SECRET_ACCESS_KEY": "secret",
 				"AWS_SESSION_TOKEN":     "",
-				"AWS_REGION":            "eu-central-1",
-				"AWS_DEFAULT_REGION":    "eu-central-1",
+				"AWS_REGION":            testRegionEUCentral1,
+				"AWS_DEFAULT_REGION":    testRegionEUCentral1,
 			},
 		},
 	}
@@ -180,6 +186,12 @@ type mockSTSClient struct {
 	assumeRoleFn        func(context.Context, *sts.AssumeRoleInput, ...func(*sts.Options)) (*sts.AssumeRoleOutput, error)
 }
 
+type failingCredentialsProvider struct{}
+
+func (failingCredentialsProvider) Retrieve(context.Context) (sdkaws.Credentials, error) {
+	return sdkaws.Credentials{}, errors.New("retrieve failed")
+}
+
 func (m *mockSTSClient) GetCallerIdentity(ctx context.Context, in *sts.GetCallerIdentityInput, optFns ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error) {
 	if m.getCallerIdentityFn != nil {
 		return m.getCallerIdentityFn(ctx, in, optFns...)
@@ -192,4 +204,31 @@ func (m *mockSTSClient) AssumeRole(ctx context.Context, in *sts.AssumeRoleInput,
 		return m.assumeRoleFn(ctx, in, optFns...)
 	}
 	return nil, errors.New("not implemented")
+}
+
+func TestAssumeAdminRoleRetrieveError(t *testing.T) {
+	_, _, err := AssumeAdminRole(
+		context.Background(),
+		sdkaws.Config{Region: testRegion, Credentials: failingCredentialsProvider{}},
+		"arn:aws:iam::123456789012:user/service",
+		"123456789012",
+		testRegion,
+		testSessionName,
+		nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "retrieving initial credentials") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAssumeAdminRoleAssumeError(t *testing.T) {
+	cfg := sdkaws.Config{Region: testRegion, Credentials: credentials.NewStaticCredentialsProvider("AKIA", "secret", "token")}
+	_, _, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:user/service", "123456789012", testRegion, testSessionName, func(sdkaws.Config) STSAPI {
+		return &mockSTSClient{assumeRoleFn: func(context.Context, *sts.AssumeRoleInput, ...func(*sts.Options)) (*sts.AssumeRoleOutput, error) {
+			return nil, errors.New("assume failed")
+		}}
+	})
+	if err == nil || !strings.Contains(err.Error(), "assuming platform-admin role") {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
