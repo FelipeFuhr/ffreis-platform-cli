@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	sharedaudit "github.com/ffreis/platform-cli/pkg/audit"
+	sharedoutput "github.com/ffreis/platform-cli/pkg/output"
 	"github.com/ffreis/platform-cli/pkg/tfexec"
 )
 
@@ -152,11 +152,11 @@ func RunFallbackCleanup(ctx context.Context, cause error, opts FallbackOptions) 
 		summary, err := runManagedSDKFallbackNuke(ctx, opts.AWSConfig, opts.Reporter, owned)
 		opts.Reporter.Summary(
 			"AWS Fallback Cleanup",
-			countPart(opts.CountPart, "deleted", summary.Deleted),
-			countPart(opts.CountPart, "gone", summary.Gone),
-			countPart(opts.CountPart, "blocked", summary.Blocked),
-			countPart(opts.CountPart, "manual", summary.Manual),
-			countPart(opts.CountPart, "failed", summary.Failed),
+			sharedoutput.CountPartWithFn(opts.CountPart, "deleted", summary.Deleted),
+			sharedoutput.CountPartWithFn(opts.CountPart, "gone", summary.Gone),
+			sharedoutput.CountPartWithFn(opts.CountPart, "blocked", summary.Blocked),
+			sharedoutput.CountPartWithFn(opts.CountPart, "manual", summary.Manual),
+			sharedoutput.CountPartWithFn(opts.CountPart, "failed", summary.Failed),
 		)
 		if err != nil {
 			return err
@@ -762,13 +762,6 @@ func isS3BucketMissing(err error) bool {
 		return true
 	}
 	return isNotFoundError(err)
-}
-
-func countPart(partFn func(string, int) string, label string, value int) string {
-	if partFn != nil {
-		return partFn(label, value)
-	}
-	return label + "=" + strconv.Itoa(value)
 }
 
 func formatPurgeError(resource sharedaudit.Resource, err error) string {

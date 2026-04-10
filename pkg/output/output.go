@@ -57,6 +57,13 @@ func CountPart(label string, value int) string {
 	return label + "=" + strconv.Itoa(value)
 }
 
+func CountPartWithFn(partFn func(string, int) string, label string, value int) string {
+	if partFn != nil {
+		return partFn(label, value)
+	}
+	return label + "=" + strconv.Itoa(value)
+}
+
 func EnvAccountRegionSummary(env, accountID, region string) string {
 	return "env " + env + "  account " + accountID + "  region " + region
 }

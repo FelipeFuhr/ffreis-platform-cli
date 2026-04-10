@@ -1,8 +1,9 @@
 package doctor
 
 import (
-	"strconv"
 	"strings"
+
+	sharedoutput "github.com/ffreis/platform-cli/pkg/output"
 )
 
 type Renderer interface {
@@ -57,24 +58,24 @@ func PrintSummary(out interface{ Summary(string, ...string) }, report Report, op
 		title = "Summary"
 	}
 	parts := []string{
-		countPart(opts.CountPart, "ok", report.Summary.OK),
-		countPart(opts.CountPart, "warn", report.Summary.Warn),
-		countPart(opts.CountPart, "fail", report.Summary.Fail),
+		sharedoutput.CountPartWithFn(opts.CountPart, "ok", report.Summary.OK),
+		sharedoutput.CountPartWithFn(opts.CountPart, "warn", report.Summary.Warn),
+		sharedoutput.CountPartWithFn(opts.CountPart, "fail", report.Summary.Fail),
 	}
 	if opts.IncludeInfo {
-		parts = append(parts, countPart(opts.CountPart, "info", report.Summary.Info))
+		parts = append(parts, sharedoutput.CountPartWithFn(opts.CountPart, "info", report.Summary.Info))
 	}
 	out.Summary(title, parts...)
 }
 
 func sectionSummaryParts(section Section, opts RenderOptions) []string {
 	parts := []string{
-		countPart(opts.CountPart, "ok", CountChecks(section.Checks, "ok")),
-		countPart(opts.CountPart, "warn", CountChecks(section.Checks, "warn")),
-		countPart(opts.CountPart, "fail", CountChecks(section.Checks, "fail")),
+		sharedoutput.CountPartWithFn(opts.CountPart, "ok", CountChecks(section.Checks, "ok")),
+		sharedoutput.CountPartWithFn(opts.CountPart, "warn", CountChecks(section.Checks, "warn")),
+		sharedoutput.CountPartWithFn(opts.CountPart, "fail", CountChecks(section.Checks, "fail")),
 	}
 	if opts.IncludeInfo {
-		parts = append(parts, countPart(opts.CountPart, "info", CountChecks(section.Checks, "info")))
+		parts = append(parts, sharedoutput.CountPartWithFn(opts.CountPart, "info", CountChecks(section.Checks, "info")))
 	}
 	return parts
 }
@@ -106,11 +107,4 @@ func reportRow(check Check, opts RenderOptions) []string {
 		detail += " | hint: " + check.Hint
 	}
 	return []string{status, check.Title, detail}
-}
-
-func countPart(partFn func(string, int) string, label string, value int) string {
-	if partFn != nil {
-		return partFn(label, value)
-	}
-	return label + "=" + strconv.Itoa(value)
 }
