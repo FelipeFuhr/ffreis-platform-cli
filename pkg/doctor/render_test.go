@@ -32,7 +32,9 @@ func (f *fakeRenderer) Blank() { f.blanks++ }
 func TestPrintReportAndSummary(t *testing.T) {
 	renderer := &fakeRenderer{}
 	report := Report{Summary: Summary{OK: 1, Warn: 1, Fail: 1, Info: 1}, Sections: []Section{{Title: "Contract", Checks: []Check{{Status: "ok", Title: "ready", Detail: "yes"}, {Status: "info", Title: "hint", Detail: "optional", Hint: "fine"}}}}}
-	PrintReport(renderer, report, RenderOptions{IncludeInfo: true})
+	if err := PrintReport(renderer, report, RenderOptions{IncludeInfo: true}); err != nil {
+		t.Fatalf("PrintReport returned error: %v", err)
+	}
 	PrintSummary(renderer, report, RenderOptions{SummaryTitle: "Integrity Summary", IncludeInfo: true})
 	if len(renderer.summaries) != 2 {
 		t.Fatalf("summary calls = %d, want 2", len(renderer.summaries))
@@ -56,7 +58,7 @@ func TestPrintReportAndSummary(t *testing.T) {
 func TestPrintReportWithSectionHeadersAndHintColumn(t *testing.T) {
 	renderer := &fakeRenderer{}
 	report := Report{Sections: []Section{{Title: "Runtime", Checks: []Check{{Status: "ok", Title: "ready", Detail: "yes"}}}}}
-	PrintReport(renderer, report, RenderOptions{
+	if err := PrintReport(renderer, report, RenderOptions{
 		UseSectionHeaders:    true,
 		SeparateHintColumn:   true,
 		EmptyHintPlaceholder: "-",
@@ -64,7 +66,9 @@ func TestPrintReportWithSectionHeadersAndHintColumn(t *testing.T) {
 		StatusCell: func(status string) string {
 			return "badge:" + status
 		},
-	})
+	}); err != nil {
+		t.Fatalf("PrintReport returned error: %v", err)
+	}
 	if len(renderer.headers) != 1 || renderer.headers[0][0] != "Runtime" {
 		t.Fatalf("headers = %#v, want Runtime header", renderer.headers)
 	}

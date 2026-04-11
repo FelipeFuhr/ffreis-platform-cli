@@ -27,7 +27,7 @@ type RenderOptions struct {
 	StatusCell           func(string) string
 }
 
-func PrintReport(out Renderer, report Report, opts RenderOptions) {
+func PrintReport(out Renderer, report Report, opts RenderOptions) error {
 	for idx, section := range report.Sections {
 		if opts.UseSectionHeaders {
 			if idx > 0 {
@@ -45,11 +45,14 @@ func PrintReport(out Renderer, report Report, opts RenderOptions) {
 		for _, check := range section.Checks {
 			rows = append(rows, reportRow(check, opts))
 		}
-		_ = out.Table(reportHeaders(opts), rows)
+		if err := out.Table(reportHeaders(opts), rows); err != nil {
+			return err
+		}
 		if !opts.UseSectionHeaders {
 			out.Blank()
 		}
 	}
+	return nil
 }
 
 func PrintSummary(out interface{ Summary(string, ...string) }, report Report, opts RenderOptions) {

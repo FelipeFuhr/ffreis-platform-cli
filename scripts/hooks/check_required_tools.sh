@@ -17,7 +17,7 @@ install_hint() {
 
   case "${tool_name}" in
     golangci-lint)
-      echo "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0"
+      echo "go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"
       ;;
     gitleaks)
       echo "https://github.com/gitleaks/gitleaks#installing"
