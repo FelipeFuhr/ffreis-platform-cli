@@ -163,3 +163,122 @@ func TestShouldSkipAuth(t *testing.T) {
 		t.Fatal("expected auth not to be skipped")
 	}
 }
+
+func TestEnsureStringPtrWithNil(t *testing.T) {
+	// Test that nil input creates a new string pointer
+	result := ensureStringPtr(nil)
+	if result == nil {
+		t.Fatal("expected non-nil pointer from ensureStringPtr(nil)")
+	}
+	if *result != "" {
+		t.Fatalf("expected empty string, got %q", *result)
+	}
+}
+
+func TestDefaultStringWithEmptyValue(t *testing.T) {
+	// Test that empty string returns fallback
+	result := defaultString("", "fallback")
+	if result != "fallback" {
+		t.Fatalf("expected fallback, got %q", result)
+	}
+}
+
+func TestPrepareRootContextWithBeforeAuthReturningNil(t *testing.T) {
+	cmd := &cobra.Command{}
+	baseCtx := context.WithValue(context.Background(), appTestContextKey, "base")
+	cmd.SetContext(baseCtx)
+
+	// BeforeAuth returns nil for context, should keep original
+	got, err := prepareRootContext(cmd, Options{BeforeAuth: func(context.Context, *cobra.Command) (context.Context, error) {
+		return nil, nil
+	}}, "prod")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != baseCtx {
+		t.Fatalf("expected original context when BeforeAuth returns nil")
+	}
+	if cmd.Context() != baseCtx {
+		t.Fatalf("expected cmd context unchanged when BeforeAuth returns nil")
+	}
+}
+
+func TestBuildPersistentPreRunWithAfterAuthError(t *testing.T) {
+	var profile, region, logLevel, env, org string
+	wantErr := errors.New("post-auth validation failed")
+	cmd := NewRoot(Options{
+		Use:         "example",
+		Short:       "example",
+		Flags:       FlagBindings{Profile: &profile, Region: &region, LogLevel: &logLevel, Env: &env, Org: &org},
+		ValidateEnv: func(string) error { return nil },
+		LoadAWSConfig: func(context.Context, string, string) (sdkaws.Config, error) {
+			return sdkaws.Config{Region: "us-east-1", Credentials: credentials.NewStaticCredentialsProvider("AKIAINIT", "secret", "token")}, nil
+		},
+		NewSTSClient: func(sdkaws.Config) sharedauth.STSAPI {
+			return fakeSTSClient{}
+		},
+		AfterAuth: func(*Runtime) error {
+			return wantErr
+		},
+	})
+	cmd.AddCommand(&cobra.Command{Use: "plan", Run: func(*cobra.Command, []string) {}})
+	cmd.SetArgs([]string{"plan"})
+	if code := Execute(cmd, &bytes.Buffer{}); code != 1 {
+		t.Fatalf("expected exit code 1, got %d", code)
+	}
+}
+
+func TestDefaultStringWithNonEmptyValue(t *testing.T) {
+	// Test that non-empty string returns itself, not fallback
+	result := defaultString("production", "fallback")
+	if result != "production" {
+		t.Fatalf("expected production, got %q", result)
+	}
+}
+
+func TestPrepareRootContextWithValidateEnvError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+
+	wantErr := errors.New("invalid environment")
+	_, err := prepareRootContext(cmd, Options{
+		ValidateEnv: func(string) error {
+			return wantErr
+		},
+	}, "staging")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+}
+
+func TestPrepareRootContextWithBeforeAuthError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+
+	wantErr := errors.New("before auth failed")
+	_, err := prepareRootContext(cmd, Options{
+		BeforeAuth: func(context.Context, *cobra.Command) (context.Context, error) {
+			return nil, wantErr
+		},
+	}, "prod")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected before-auth error, got %v", err)
+	}
+}
+
+func TestBuildPersistentPreRunWithAuthenticationError(t *testing.T) {
+	var profile, region, logLevel, env, org string
+	cmd := NewRoot(Options{
+		Use:   "example",
+		Short: "example",
+		Flags: FlagBindings{Profile: &profile, Region: &region, LogLevel: &logLevel, Env: &env, Org: &org},
+		LoadAWSConfig: func(context.Context, string, string) (sdkaws.Config, error) {
+			return sdkaws.Config{}, errors.New("failed to load AWS config")
+		},
+	})
+	cmd.AddCommand(&cobra.Command{Use: "apply", Run: func(*cobra.Command, []string) {}})
+	cmd.SetArgs([]string{"apply"})
+	if code := Execute(cmd, &bytes.Buffer{}); code != 1 {
+		t.Fatalf("expected exit code 1, got %d", code)
+	}
+}

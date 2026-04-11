@@ -63,3 +63,350 @@ func TestResourceNameAndTypeFromARN(t *testing.T) {
 		t.Fatalf("ResourceNameFromARN() = %q", got)
 	}
 }
+
+func TestResourceTypeFromARNTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		arn  string
+		want string
+	}{
+		// S3 buckets
+		{"s3 bucket", "arn:aws:s3:::my-bucket", "s3"},
+		// EC2 resources
+		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", "ec2/instance"},
+		{"ec2 volume", "arn:aws:ec2:us-east-1:123456789012:volume/vol-0123456789abcdef0", "ec2/volume"},
+		{"ec2 security-group", "arn:aws:ec2:us-east-1:123456789012:security-group/sg-0123456789abcdef0", "ec2/security-group"},
+		{"ec2 subnet", "arn:aws:ec2:us-east-1:123456789012:subnet/subnet-0123456789abcdef0", "ec2/subnet"},
+		{"ec2 vpc", "arn:aws:ec2:us-east-1:123456789012:vpc/vpc-0123456789abcdef0", "ec2/vpc"},
+		// Lambda
+		{"lambda function", "arn:aws:lambda:us-east-1:123456789012:function:my-function", "lambda/function"},
+		// DynamoDB
+		{"dynamodb table", "arn:aws:dynamodb:us-east-1:123456789012:table/MyTable", "dynamodb/table"},
+		// Logs
+		{"logs log-group", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", "logs/log-group"},
+		// Route53
+		{"route53 hostedzone", "arn:aws:route53:::hostedzone/Z123456789ABC", "route53/hostedzone"},
+		// CloudFront
+		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", "cloudfront/distribution"},
+		// IAM
+		{"iam role", "arn:aws:iam::123456789012:role/my-role", "iam/role"},
+		{"iam policy", "arn:aws:iam::123456789012:policy/my-policy", "iam/policy"},
+		// API Gateway
+		{"apigateway api", "arn:aws:apigateway:us-east-1::/restapis/abc123", "apigateway/restapis"},
+		{"apigatewayv2 api", "arn:aws:apigateway:us-east-1::/apis/abc123/stages/prod", "apigateway/apis"},
+		// KMS
+		{"kms key", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012", "kms/key"},
+		// ACM
+		{"acm certificate", "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012", "acm/certificate"},
+		// ElastiCache
+		{"elasticache cluster", "arn:aws:elasticache:us-east-1:123456789012:cluster:my-cluster", "elasticache/cluster"},
+		// CloudTrail
+		{"cloudtrail trail", "arn:aws:cloudtrail:us-east-1:123456789012:trail/my-trail", "cloudtrail/trail"},
+		// Edge cases
+		{"empty arn", "", "unknown"},
+		{"malformed arn", "not-an-arn", "unknown"},
+		{"incomplete arn", "arn:aws:ec2", "unknown"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResourceTypeFromARN(tt.arn)
+			if got != tt.want {
+				t.Fatalf("ResourceTypeFromARN(%q) = %q, want %q", tt.arn, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResourceNameFromARNAll(t *testing.T) {
+	tests := []struct {
+		name         string
+		arn          string
+		resourceType string
+		want         string
+	}{
+		// S3
+		{"s3 bucket", "arn:aws:s3:::my-bucket", "s3", "my-bucket"},
+		// EC2
+		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", "ec2/instance", "i-0123456789abcdef0"},
+		{"ec2 volume", "arn:aws:ec2:us-east-1:123456789012:volume/vol-0123456789abcdef0", "ec2/volume", "vol-0123456789abcdef0"},
+		// Lambda
+		{"lambda function", "arn:aws:lambda:us-east-1:123456789012:function:my-function", "lambda/function", "my-function"},
+		// DynamoDB
+		{"dynamodb table", "arn:aws:dynamodb:us-east-1:123456789012:table/MyTable", "dynamodb/table", "MyTable"},
+		// Logs
+		{"logs log-group simple", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function:*", "logs/log-group", "/aws/lambda/function"},
+		{"logs log-group no suffix", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", "logs/log-group", "/aws/lambda/function"},
+		// Route53
+		{"route53 hostedzone", "arn:aws:route53:::hostedzone/Z123456789ABC", "route53/hostedzone", "Z123456789ABC"},
+		// CloudFront
+		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", "cloudfront/distribution", "E123456789ABC"},
+		// IAM
+		{"iam role", "arn:aws:iam::123456789012:role/my-role", "iam/role", "my-role"},
+		{"iam policy", "arn:aws:iam::123456789012:policy/my-policy", "iam/policy", "my-policy"},
+		// KMS
+		{"kms key", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012", "kms/key", "12345678-1234-1234-1234-123456789012"},
+		// ElastiCache
+		{"elasticache cluster", "arn:aws:elasticache:us-east-1:123456789012:cluster:my-cluster", "elasticache/cluster", "my-cluster"},
+		// API Gateway v2
+		{"apigatewayv2 api", "arn:aws:apigateway:us-east-1::/apis/abc123/stages/prod", "apigatewayv2/api", "abc123"},
+		// Generic with colon separator
+		{"generic colon", "arn:aws:service:region:account:type:name", "service/type", "name"},
+		// Edge cases
+		{"empty arn", "", "s3", ""},
+		{"fallback parsing", "arn:aws:iam::123456789012:role/my-role", "unknown/type", "my-role"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResourceNameFromARN(tt.arn, tt.resourceType)
+			if got != tt.want {
+				t.Fatalf("ResourceNameFromARN(%q, %q) = %q, want %q", tt.arn, tt.resourceType, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMatchedResourceKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource Resource
+		validate func(string) bool
+	}{
+		{
+			name: "owned resource with arn",
+			resource: Resource{
+				Status:       "OWNED",
+				ARN:          "arn:aws:s3:::my-bucket",
+				Stack:        "my-stack",
+				Environment:  "prod",
+				ResourceType: "s3",
+				Name:         "my-bucket",
+			},
+			validate: func(key string) bool {
+				return key == "arn:aws:s3:::my-bucket"
+			},
+		},
+		{
+			name: "other managed resource with arn",
+			resource: Resource{
+				Status:       "OTHER_MANAGED",
+				ARN:          "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+				Stack:        "",
+				Environment:  "prod",
+				ResourceType: "lambda/function",
+				Name:         "my-function",
+			},
+			validate: func(key string) bool {
+				return key == "arn:aws:lambda:us-east-1:123456789012:function:my-function"
+			},
+		},
+		{
+			name: "unowned resource without arn",
+			resource: Resource{
+				Status:       "UNOWNED",
+				ARN:          "",
+				Stack:        "my-stack",
+				Environment:  "prod",
+				ResourceType: "ec2/instance",
+				Name:         "i-1234567890abcdef0",
+			},
+			validate: func(key string) bool {
+				return key == "my-stack|prod|ec2/instance|i-1234567890abcdef0"
+			},
+		},
+		{
+			name: "resource key is lowercase",
+			resource: Resource{
+				Status:       "OWNED",
+				ARN:          "arn:aws:s3:::MY-BUCKET",
+				Stack:        "",
+				Environment:  "",
+				ResourceType: "",
+				Name:         "",
+			},
+			validate: func(key string) bool {
+				return key == "arn:aws:s3:::my-bucket"
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MatchedResourceKey(tt.resource)
+			if !tt.validate(got) {
+				t.Fatalf("MatchedResourceKey() = %q, validation failed", got)
+			}
+		})
+	}
+}
+
+func TestAssignResourceStatus(t *testing.T) {
+	contract := inventory.Contract{StackTag: "my-stack", RepoTag: "my-repo", LayerTag: "api"}
+	tests := []struct {
+		name         string
+		managedBy    string
+		stack        string
+		environment  string
+		env          string
+		missingCore  []string
+		missingOwner []string
+		wantStatus   string
+		wantIssues   int
+	}{
+		{
+			name:         "owned resource all tags correct",
+			managedBy:    "terraform",
+			stack:        "my-stack",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{},
+			missingOwner: []string{},
+			wantStatus:   "OWNED",
+			wantIssues:   0,
+		},
+		{
+			name:         "owned resource missing ownership tags",
+			managedBy:    "terraform",
+			stack:        "my-stack",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{},
+			missingOwner: []string{"Repo", "Layer"},
+			wantStatus:   "OWNED",
+			wantIssues:   1,
+		},
+		{
+			name:         "owned resource wrong env",
+			managedBy:    "terraform",
+			stack:        "my-stack",
+			environment:  "dev",
+			env:          "prod",
+			missingCore:  []string{},
+			missingOwner: []string{},
+			wantStatus:   "OTHER_MANAGED",
+			wantIssues:   0,
+		},
+		{
+			name:         "other managed with managed by",
+			managedBy:    "cloudformation",
+			stack:        "",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{"Stack", "Environment"},
+			missingOwner: []string{},
+			wantStatus:   "OTHER_MANAGED",
+			wantIssues:   1,
+		},
+		{
+			name:         "other managed with stack tag",
+			managedBy:    "",
+			stack:        "other-stack",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{"ManagedBy"},
+			missingOwner: []string{},
+			wantStatus:   "OTHER_MANAGED",
+			wantIssues:   1,
+		},
+		{
+			name:         "other managed terraform without matching stack",
+			managedBy:    "terraform",
+			stack:        "other-stack",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{},
+			missingOwner: []string{},
+			wantStatus:   "OTHER_MANAGED",
+			wantIssues:   0,
+		},
+		{
+			name:         "unowned no tags",
+			managedBy:    "",
+			stack:        "",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{"ManagedBy", "Stack"},
+			missingOwner: []string{},
+			wantStatus:   "UNOWNED",
+			wantIssues:   1,
+		},
+		{
+			name:         "other managed terraform with missing ownership",
+			managedBy:    "terraform",
+			stack:        "other-stack",
+			environment:  "prod",
+			env:          "prod",
+			missingCore:  []string{},
+			missingOwner: []string{"Repo"},
+			wantStatus:   "OTHER_MANAGED",
+			wantIssues:   1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource := Resource{
+				ManagedBy:   tt.managedBy,
+				Stack:       tt.stack,
+				Environment: tt.environment,
+			}
+			assignResourceStatus(&resource, contract, tt.env, tt.missingCore, tt.missingOwner)
+			if resource.Status != tt.wantStatus {
+				t.Fatalf("assignResourceStatus() status = %q, want %q", resource.Status, tt.wantStatus)
+			}
+			if len(resource.Issues) != tt.wantIssues {
+				t.Fatalf("assignResourceStatus() issues count = %d, want %d (issues: %v)", len(resource.Issues), tt.wantIssues, resource.Issues)
+			}
+		})
+	}
+}
+
+func TestAppendMissingTagIssue(t *testing.T) {
+	tests := []struct {
+		name        string
+		prefix      string
+		missing     []string
+		wantIssue   bool
+		wantContent string
+	}{
+		{
+			name:      "no missing tags",
+			prefix:    "missing core tags",
+			missing:   []string{},
+			wantIssue: false,
+		},
+		{
+			name:        "single missing tag",
+			prefix:      "missing core tags",
+			missing:     []string{"ManagedBy"},
+			wantIssue:   true,
+			wantContent: "missing core tags: ManagedBy",
+		},
+		{
+			name:        "multiple missing tags",
+			prefix:      "missing core tags",
+			missing:     []string{"ManagedBy", "Stack", "Environment"},
+			wantIssue:   true,
+			wantContent: "missing core tags: ManagedBy, Stack, Environment",
+		},
+		{
+			name:        "ownership tags prefix",
+			prefix:      "missing ownership tags",
+			missing:     []string{"Repo", "Layer"},
+			wantIssue:   true,
+			wantContent: "missing ownership tags: Repo, Layer",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource := &Resource{}
+			appendMissingTagIssue(resource, tt.prefix, tt.missing)
+			if tt.wantIssue && len(resource.Issues) == 0 {
+				t.Fatalf("appendMissingTagIssue() expected issue but got none")
+			}
+			if !tt.wantIssue && len(resource.Issues) > 0 {
+				t.Fatalf("appendMissingTagIssue() expected no issue but got: %v", resource.Issues)
+			}
+			if tt.wantIssue && len(resource.Issues) > 0 && resource.Issues[0] != tt.wantContent {
+				t.Fatalf("appendMissingTagIssue() issue = %q, want %q", resource.Issues[0], tt.wantContent)
+			}
+		})
+	}
+}

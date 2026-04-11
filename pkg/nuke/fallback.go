@@ -92,6 +92,7 @@ type stateS3API interface {
 	ListObjectVersions(context.Context, *s3.ListObjectVersionsInput, ...func(*s3.Options)) (*s3.ListObjectVersionsOutput, error)
 	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
 	DeleteObject(context.Context, *s3.DeleteObjectInput, ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
+	DeleteBucket(context.Context, *s3.DeleteBucketInput, ...func(*s3.Options)) (*s3.DeleteBucketOutput, error)
 	HeadBucket(context.Context, *s3.HeadBucketInput, ...func(*s3.Options)) (*s3.HeadBucketOutput, error)
 }
 
@@ -99,6 +100,14 @@ type stateDynamoAPI interface {
 	DescribeTable(context.Context, *dynamodb.DescribeTableInput, ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
 	Scan(context.Context, *dynamodb.ScanInput, ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error)
 	DeleteItem(context.Context, *dynamodb.DeleteItemInput, ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+}
+
+type iamDeleteAPI interface {
+	ListRolePolicies(context.Context, *iam.ListRolePoliciesInput, ...func(*iam.Options)) (*iam.ListRolePoliciesOutput, error)
+	ListAttachedRolePolicies(context.Context, *iam.ListAttachedRolePoliciesInput, ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error)
+	DeleteRolePolicy(context.Context, *iam.DeleteRolePolicyInput, ...func(*iam.Options)) (*iam.DeleteRolePolicyOutput, error)
+	DetachRolePolicy(context.Context, *iam.DetachRolePolicyInput, ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
+	DeleteRole(context.Context, *iam.DeleteRoleInput, ...func(*iam.Options)) (*iam.DeleteRoleOutput, error)
 }
 
 type Reporter interface {
@@ -228,11 +237,13 @@ func deletePriority(resourceType string) int {
 func runManagedSDKFallbackNuke(ctx context.Context, awsCfg sdkaws.Config, out Reporter, resources []sharedaudit.Resource) (fallbackSummary, error) {
 	summary := fallbackSummary{}
 	cc := newCloudControlClient(awsCfg)
+	iam := newIAMDeleteClient(awsCfg)
+	s3 := newS3DeleteClient(awsCfg)
 	var errs []string
 
 	for _, resource := range resources {
 		out.Status("info", "cleanup", fmt.Sprintf("deleting %s %s", resource.ResourceType, resource.Name))
-		err := deleteManagedResourceWithFallback(ctx, awsCfg, cc, resource)
+		err := deleteManagedResourceWithFallback(ctx, cc, iam, s3, resource)
 		switch classifyPurgeDeleteError(err) {
 		case purgeFailureGone:
 			summary.Gone++
@@ -263,8 +274,8 @@ func runManagedSDKFallbackNuke(ctx context.Context, awsCfg sdkaws.Config, out Re
 	return summary, nil
 }
 
-func deleteManagedResourceWithFallback(ctx context.Context, awsCfg sdkaws.Config, cc cloudControlAPI, resource sharedaudit.Resource) error {
-	if handled, err := deleteResourceNatively(ctx, awsCfg, resource); handled {
+func deleteManagedResourceWithFallback(ctx context.Context, cc cloudControlAPI, iam iamDeleteAPI, s3 stateS3API, resource sharedaudit.Resource) error {
+	if handled, err := deleteResourceNatively(ctx, iam, s3, resource); handled {
 		return err
 	}
 
@@ -285,19 +296,18 @@ func deleteManagedResourceWithFallback(ctx context.Context, awsCfg sdkaws.Config
 	return waitForDelete(ctx, cc, sdkaws.ToString(resp.ProgressEvent.RequestToken))
 }
 
-func deleteResourceNatively(ctx context.Context, awsCfg sdkaws.Config, resource sharedaudit.Resource) (bool, error) {
+func deleteResourceNatively(ctx context.Context, iam iamDeleteAPI, s3 stateS3API, resource sharedaudit.Resource) (bool, error) {
 	switch resource.ResourceType {
 	case resourceTypeIAMRole:
-		return true, forceDeleteIAMRole(ctx, awsCfg, resource.Name)
+		return true, forceDeleteIAMRole(ctx, iam, resource.Name)
 	case "s3":
-		return true, forceDeleteS3Bucket(ctx, awsCfg, resource.Name)
+		return true, forceDeleteS3Bucket(ctx, s3, resource.Name)
 	default:
 		return false, nil
 	}
 }
 
-func forceDeleteIAMRole(ctx context.Context, awsCfg sdkaws.Config, roleName string) error {
-	client := newIAMDeleteClient(awsCfg)
+func forceDeleteIAMRole(ctx context.Context, client iamDeleteAPI, roleName string) error {
 	if err := deleteInlineRolePolicies(ctx, client, roleName); err != nil {
 		return err
 	}
@@ -311,8 +321,7 @@ func forceDeleteIAMRole(ctx context.Context, awsCfg sdkaws.Config, roleName stri
 	return err
 }
 
-func forceDeleteS3Bucket(ctx context.Context, awsCfg sdkaws.Config, bucket string) error {
-	client := newS3DeleteClient(awsCfg)
+func forceDeleteS3Bucket(ctx context.Context, client stateS3API, bucket string) error {
 	if _, _, err := deleteMatchingBucketVersions(ctx, client, bucket, ""); err != nil {
 		return err
 	}
@@ -323,7 +332,7 @@ func forceDeleteS3Bucket(ctx context.Context, awsCfg sdkaws.Config, bucket strin
 	return err
 }
 
-func deleteInlineRolePolicies(ctx context.Context, client *iam.Client, roleName string) error {
+func deleteInlineRolePolicies(ctx context.Context, client iamDeleteAPI, roleName string) error {
 	var marker *string
 	for {
 		out, err := client.ListRolePolicies(ctx, &iam.ListRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
@@ -345,7 +354,7 @@ func deleteInlineRolePolicies(ctx context.Context, client *iam.Client, roleName 
 	}
 }
 
-func deleteInlineRolePolicy(ctx context.Context, client *iam.Client, roleName, policyName string) error {
+func deleteInlineRolePolicy(ctx context.Context, client iamDeleteAPI, roleName, policyName string) error {
 	_, err := client.DeleteRolePolicy(ctx, &iam.DeleteRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyName: sdkaws.String(policyName)})
 	if err != nil && !isNotFoundError(err) {
 		return err
@@ -353,7 +362,7 @@ func deleteInlineRolePolicy(ctx context.Context, client *iam.Client, roleName, p
 	return nil
 }
 
-func detachAttachedRolePolicies(ctx context.Context, client *iam.Client, roleName string) error {
+func detachAttachedRolePolicies(ctx context.Context, client iamDeleteAPI, roleName string) error {
 	var marker *string
 	for {
 		out, err := client.ListAttachedRolePolicies(ctx, &iam.ListAttachedRolePoliciesInput{RoleName: sdkaws.String(roleName), Marker: marker})
@@ -375,7 +384,7 @@ func detachAttachedRolePolicies(ctx context.Context, client *iam.Client, roleNam
 	}
 }
 
-func detachAttachedRolePolicy(ctx context.Context, client *iam.Client, roleName string, policyArn *string) error {
+func detachAttachedRolePolicy(ctx context.Context, client iamDeleteAPI, roleName string, policyArn *string) error {
 	_, err := client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{RoleName: sdkaws.String(roleName), PolicyArn: policyArn})
 	if err != nil && !isNotFoundError(err) {
 		return err
