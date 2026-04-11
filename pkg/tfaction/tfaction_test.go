@@ -10,11 +10,19 @@ import (
 	"github.com/ffreis/platform-cli/pkg/tfexec"
 )
 
+const (
+	testStackPath          = "/repo/stack"
+	errUnexpectedResultFmt = "unexpected result: %+v"
+	errArgsMismatchFmt     = "args = %#v, want %#v"
+	testPlanFile           = "../envs/prod/tfplan"
+	errRunApplyFmt         = "RunApply() error = %v"
+)
+
 func TestRunPlanBuildsExpectedArgs(t *testing.T) {
 	var captured tfexec.RunOptions
 	result, err := RunPlan(context.Background(), PlanOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		Creds: auth.RawCreds{},
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
@@ -30,11 +38,11 @@ func TestRunPlanBuildsExpectedArgs(t *testing.T) {
 		t.Fatalf("RunPlan() error = %v", err)
 	}
 	if !result.HasChanges || result.ExitCode != 2 {
-		t.Fatalf("unexpected result: %+v", result)
+		t.Fatalf(errUnexpectedResultFmt, result)
 	}
 	wantArgs := []string{"plan", "-detailed-exitcode", "-var-file=../envs/prod/terraform.tfvars", "-out=tfplan"}
 	if !reflect.DeepEqual(captured.Args, wantArgs) {
-		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
+		t.Fatalf(errArgsMismatchFmt, captured.Args, wantArgs)
 	}
 }
 
@@ -42,10 +50,10 @@ func TestRunApplyUsesPlanFile(t *testing.T) {
 	var captured tfexec.RunOptions
 	result, err := RunApply(context.Background(), ApplyOptions{
 		Root:        "/repo",
-		Stack:       "/repo/stack",
+		Stack:       testStackPath,
 		Env:         "prod",
 		Creds:       auth.RawCreds{},
-		PlanFile:    "../envs/prod/tfplan",
+		PlanFile:    testPlanFile,
 		AutoApprove: true,
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
@@ -56,14 +64,14 @@ func TestRunApplyUsesPlanFile(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("RunApply() error = %v", err)
+		t.Fatalf(errRunApplyFmt, err)
 	}
 	if result.ExitCode != 0 {
-		t.Fatalf("unexpected result: %+v", result)
+		t.Fatalf(errUnexpectedResultFmt, result)
 	}
-	wantArgs := []string{"apply", "../envs/prod/tfplan", "-auto-approve"}
+	wantArgs := []string{"apply", testPlanFile, "-auto-approve"}
 	if !reflect.DeepEqual(captured.Args, wantArgs) {
-		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
+		t.Fatalf(errArgsMismatchFmt, captured.Args, wantArgs)
 	}
 }
 
@@ -83,7 +91,7 @@ func TestRunPlanRunTerraformError(t *testing.T) {
 	wantErr := errors.New("terraform failed")
 	_, err := RunPlan(context.Background(), PlanOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
@@ -101,7 +109,7 @@ func TestRunApplyWithoutPlanFileUsesVarArgs(t *testing.T) {
 	var captured tfexec.RunOptions
 	result, err := RunApply(context.Background(), ApplyOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
@@ -113,14 +121,14 @@ func TestRunApplyWithoutPlanFileUsesVarArgs(t *testing.T) {
 		ExtraArgs: []string{"-lock=false"},
 	})
 	if err != nil {
-		t.Fatalf("RunApply() error = %v", err)
+		t.Fatalf(errRunApplyFmt, err)
 	}
 	if result.ExitCode != 0 {
-		t.Fatalf("unexpected result: %+v", result)
+		t.Fatalf(errUnexpectedResultFmt, result)
 	}
 	wantArgs := []string{"apply", "-var-file=../envs/prod/terraform.tfvars", "-lock=false"}
 	if !reflect.DeepEqual(captured.Args, wantArgs) {
-		t.Fatalf("args = %#v, want %#v", captured.Args, wantArgs)
+		t.Fatalf(errArgsMismatchFmt, captured.Args, wantArgs)
 	}
 }
 
@@ -128,7 +136,7 @@ func TestRunPlanWithNoChanges(t *testing.T) {
 	// Exit code 0 means no changes
 	result, err := RunPlan(context.Background(), PlanOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		Creds: auth.RawCreds{},
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
@@ -153,10 +161,10 @@ func TestRunApplyWithAutoApproveFalse(t *testing.T) {
 	var captured tfexec.RunOptions
 	result, err := RunApply(context.Background(), ApplyOptions{
 		Root:        "/repo",
-		Stack:       "/repo/stack",
+		Stack:       testStackPath,
 		Env:         "prod",
 		Creds:       auth.RawCreds{},
-		PlanFile:    "../envs/prod/tfplan",
+		PlanFile:    testPlanFile,
 		AutoApprove: false, // Explicitly false
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
@@ -167,12 +175,12 @@ func TestRunApplyWithAutoApproveFalse(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("RunApply() error = %v", err)
+		t.Fatalf(errRunApplyFmt, err)
 	}
 	if result.ExitCode != 0 {
-		t.Fatalf("unexpected result: %+v", result)
+		t.Fatalf(errUnexpectedResultFmt, result)
 	}
-	wantArgs := []string{"apply", "../envs/prod/tfplan"}
+	wantArgs := []string{"apply", testPlanFile}
 	if !reflect.DeepEqual(captured.Args, wantArgs) {
 		t.Fatalf("args = %#v, want %#v (should not have -auto-approve)", captured.Args, wantArgs)
 	}
@@ -194,7 +202,7 @@ func TestRunApplyRunTerraformError(t *testing.T) {
 	wantErr := errors.New("terraform failed")
 	_, err := RunApply(context.Background(), ApplyOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
@@ -212,7 +220,7 @@ func TestRunPlanUsesDefaultFunctions(t *testing.T) {
 	// Test that when EnsureInit and RunTerraform are nil, defaults are used
 	_, err := RunPlan(context.Background(), PlanOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		Creds: auth.RawCreds{},
 		// EnsureInit: nil - should use default
@@ -228,7 +236,7 @@ func TestRunApplyUsesDefaultFunctions(t *testing.T) {
 	// Test that when EnsureInit and RunTerraform are nil, defaults are used
 	_, err := RunApply(context.Background(), ApplyOptions{
 		Root:  "/repo",
-		Stack: "/repo/stack",
+		Stack: testStackPath,
 		Env:   "prod",
 		Creds: auth.RawCreds{},
 		// EnsureInit: nil - should use default
