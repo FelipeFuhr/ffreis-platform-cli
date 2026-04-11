@@ -22,6 +22,11 @@ const (
 	testRegionEUCentral1 = "eu-central-1"
 )
 
+const (
+	errUnexpectedFmt   = "unexpected error: %v"
+	testUserServiceARN = "arn:aws:iam::123456789012:user/service"
+)
+
 func TestRawCredsToEnv(t *testing.T) {
 	creds := RawCreds{AccessKeyID: "AKIA", SecretAccessKey: "secret", SessionToken: "token", Region: testRegion}
 	env := creds.ToEnv()
@@ -35,7 +40,7 @@ func TestLoadAWSConfigRequiresCredentials(t *testing.T) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	_, err := LoadAWSConfig(context.Background(), "", testRegion)
 	if err == nil || !strings.Contains(err.Error(), "no AWS credentials") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -43,7 +48,7 @@ func TestAssumeAdminRoleRejectsRoot(t *testing.T) {
 	cfg := sdkaws.Config{Region: testRegion, Credentials: credentials.NewStaticCredentialsProvider("ROOT", "secret", "token")}
 	_, _, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:root", "123456789012", testRegion, testSessionName, nil)
 	if err == nil || !strings.Contains(err.Error(), "root AWS credentials are not permitted") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -79,7 +84,7 @@ func TestAssumeAdminRoleCallsSTS(t *testing.T) {
 			},
 		}
 	}
-	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:user/service", "123456789012", testRegion, testSessionName, mockSTS)
+	returnedCfg, creds, err := AssumeAdminRole(context.Background(), cfg, testUserServiceARN, "123456789012", testRegion, testSessionName, mockSTS)
 	if err != nil {
 		t.Fatalf("AssumeAdminRole() error = %v", err)
 	}
@@ -211,26 +216,26 @@ func TestAssumeAdminRoleRetrieveError(t *testing.T) {
 	_, _, err := AssumeAdminRole(
 		context.Background(),
 		sdkaws.Config{Region: testRegion, Credentials: failingCredentialsProvider{}},
-		"arn:aws:iam::123456789012:user/service",
+		testUserServiceARN,
 		"123456789012",
 		testRegion,
 		testSessionName,
 		nil,
 	)
 	if err == nil || !strings.Contains(err.Error(), "retrieving initial credentials") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 func TestAssumeAdminRoleAssumeError(t *testing.T) {
 	cfg := sdkaws.Config{Region: testRegion, Credentials: credentials.NewStaticCredentialsProvider("AKIA", "secret", "token")}
-	_, _, err := AssumeAdminRole(context.Background(), cfg, "arn:aws:iam::123456789012:user/service", "123456789012", testRegion, testSessionName, func(sdkaws.Config) STSAPI {
+	_, _, err := AssumeAdminRole(context.Background(), cfg, testUserServiceARN, "123456789012", testRegion, testSessionName, func(sdkaws.Config) STSAPI {
 		return &mockSTSClient{assumeRoleFn: func(context.Context, *sts.AssumeRoleInput, ...func(*sts.Options)) (*sts.AssumeRoleOutput, error) {
 			return nil, errors.New("assume failed")
 		}}
 	})
 	if err == nil || !strings.Contains(err.Error(), "assuming platform-admin role") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 

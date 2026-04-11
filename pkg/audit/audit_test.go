@@ -13,6 +13,19 @@ import (
 
 var testContract = inventory.Contract{StackTag: "example", RepoTag: "example-repo", LayerTag: "example-layer", TerraformRootTag: "stack"}
 
+const (
+	auditCloudFrontType  = "cloudfront/distribution"
+	auditS3BucketARN     = "arn:aws:s3:::my-bucket"
+	auditEC2InstanceType = "ec2/instance"
+	auditLambdaFuncType  = "lambda/function"
+	auditLambdaFuncARN   = "arn:aws:lambda:us-east-1:123456789012:function:my-function"
+	auditLogsLogGroup    = "logs/log-group"
+	auditIAMRoleARN      = "arn:aws:iam::123456789012:role/my-role"
+	auditMyStack         = "my-stack"
+	auditOtherStack      = "other-stack"
+	auditMissingCoreTags = "missing core tags"
+)
+
 func TestClassifyResourceOwned(t *testing.T) {
 	resource := ClassifyResource(taggingtypes.ResourceTagMapping{
 		ResourceARN: sdkaws.String("arn:aws:s3:::example-bucket"),
@@ -56,10 +69,10 @@ func TestScanResourcesSortsResults(t *testing.T) {
 }
 
 func TestResourceNameAndTypeFromARN(t *testing.T) {
-	if got := ResourceTypeFromARN("arn:aws:cloudfront::123456789012:distribution/ABC"); got != "cloudfront/distribution" {
+	if got := ResourceTypeFromARN("arn:aws:cloudfront::123456789012:distribution/ABC"); got != auditCloudFrontType {
 		t.Fatalf("ResourceTypeFromARN() = %q", got)
 	}
-	if got := ResourceNameFromARN("arn:aws:cloudfront::123456789012:distribution/ABC", "cloudfront/distribution"); got != "ABC" {
+	if got := ResourceNameFromARN("arn:aws:cloudfront::123456789012:distribution/ABC", auditCloudFrontType); got != "ABC" {
 		t.Fatalf("ResourceNameFromARN() = %q", got)
 	}
 }
@@ -71,25 +84,25 @@ func TestResourceTypeFromARNTypes(t *testing.T) {
 		want string
 	}{
 		// S3 buckets
-		{"s3 bucket", "arn:aws:s3:::my-bucket", "s3"},
+		{"s3 bucket", auditS3BucketARN, "s3"},
 		// EC2 resources
-		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", "ec2/instance"},
+		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", auditEC2InstanceType},
 		{"ec2 volume", "arn:aws:ec2:us-east-1:123456789012:volume/vol-0123456789abcdef0", "ec2/volume"},
 		{"ec2 security-group", "arn:aws:ec2:us-east-1:123456789012:security-group/sg-0123456789abcdef0", "ec2/security-group"},
 		{"ec2 subnet", "arn:aws:ec2:us-east-1:123456789012:subnet/subnet-0123456789abcdef0", "ec2/subnet"},
 		{"ec2 vpc", "arn:aws:ec2:us-east-1:123456789012:vpc/vpc-0123456789abcdef0", "ec2/vpc"},
 		// Lambda
-		{"lambda function", "arn:aws:lambda:us-east-1:123456789012:function:my-function", "lambda/function"},
+		{"lambda function", auditLambdaFuncARN, auditLambdaFuncType},
 		// DynamoDB
 		{"dynamodb table", "arn:aws:dynamodb:us-east-1:123456789012:table/MyTable", "dynamodb/table"},
 		// Logs
-		{"logs log-group", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", "logs/log-group"},
+		{"logs log-group", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", auditLogsLogGroup},
 		// Route53
 		{"route53 hostedzone", "arn:aws:route53:::hostedzone/Z123456789ABC", "route53/hostedzone"},
 		// CloudFront
-		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", "cloudfront/distribution"},
+		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", auditCloudFrontType},
 		// IAM
-		{"iam role", "arn:aws:iam::123456789012:role/my-role", "iam/role"},
+		{"iam role", auditIAMRoleARN, "iam/role"},
 		{"iam policy", "arn:aws:iam::123456789012:policy/my-policy", "iam/policy"},
 		// API Gateway
 		{"apigateway api", "arn:aws:apigateway:us-east-1::/restapis/abc123", "apigateway/restapis"},
@@ -125,23 +138,23 @@ func TestResourceNameFromARNAll(t *testing.T) {
 		want         string
 	}{
 		// S3
-		{"s3 bucket", "arn:aws:s3:::my-bucket", "s3", "my-bucket"},
+		{"s3 bucket", auditS3BucketARN, "s3", "my-bucket"},
 		// EC2
-		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", "ec2/instance", "i-0123456789abcdef0"},
+		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", auditEC2InstanceType, "i-0123456789abcdef0"},
 		{"ec2 volume", "arn:aws:ec2:us-east-1:123456789012:volume/vol-0123456789abcdef0", "ec2/volume", "vol-0123456789abcdef0"},
 		// Lambda
-		{"lambda function", "arn:aws:lambda:us-east-1:123456789012:function:my-function", "lambda/function", "my-function"},
+		{"lambda function", auditLambdaFuncARN, auditLambdaFuncType, "my-function"},
 		// DynamoDB
 		{"dynamodb table", "arn:aws:dynamodb:us-east-1:123456789012:table/MyTable", "dynamodb/table", "MyTable"},
 		// Logs
-		{"logs log-group simple", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function:*", "logs/log-group", "/aws/lambda/function"},
-		{"logs log-group no suffix", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", "logs/log-group", "/aws/lambda/function"},
+		{"logs log-group simple", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function:*", auditLogsLogGroup, "/aws/lambda/function"},
+		{"logs log-group no suffix", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/function", auditLogsLogGroup, "/aws/lambda/function"},
 		// Route53
 		{"route53 hostedzone", "arn:aws:route53:::hostedzone/Z123456789ABC", "route53/hostedzone", "Z123456789ABC"},
 		// CloudFront
-		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", "cloudfront/distribution", "E123456789ABC"},
+		{"cloudfront distribution", "arn:aws:cloudfront::123456789012:distribution/E123456789ABC", auditCloudFrontType, "E123456789ABC"},
 		// IAM
-		{"iam role", "arn:aws:iam::123456789012:role/my-role", "iam/role", "my-role"},
+		{"iam role", auditIAMRoleARN, "iam/role", "my-role"},
 		{"iam policy", "arn:aws:iam::123456789012:policy/my-policy", "iam/policy", "my-policy"},
 		// KMS
 		{"kms key", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012", "kms/key", "12345678-1234-1234-1234-123456789012"},
@@ -175,28 +188,28 @@ func TestMatchedResourceKey(t *testing.T) {
 			name: "owned resource with arn",
 			resource: Resource{
 				Status:       "OWNED",
-				ARN:          "arn:aws:s3:::my-bucket",
-				Stack:        "my-stack",
+				ARN:          auditS3BucketARN,
+				Stack:        auditMyStack,
 				Environment:  "prod",
 				ResourceType: "s3",
 				Name:         "my-bucket",
 			},
 			validate: func(key string) bool {
-				return key == "arn:aws:s3:::my-bucket"
+				return key == auditS3BucketARN
 			},
 		},
 		{
 			name: "other managed resource with arn",
 			resource: Resource{
 				Status:       "OTHER_MANAGED",
-				ARN:          "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+				ARN:          auditLambdaFuncARN,
 				Stack:        "",
 				Environment:  "prod",
-				ResourceType: "lambda/function",
+				ResourceType: auditLambdaFuncType,
 				Name:         "my-function",
 			},
 			validate: func(key string) bool {
-				return key == "arn:aws:lambda:us-east-1:123456789012:function:my-function"
+				return key == auditLambdaFuncARN
 			},
 		},
 		{
@@ -204,13 +217,13 @@ func TestMatchedResourceKey(t *testing.T) {
 			resource: Resource{
 				Status:       "UNOWNED",
 				ARN:          "",
-				Stack:        "my-stack",
+				Stack:        auditMyStack,
 				Environment:  "prod",
-				ResourceType: "ec2/instance",
+				ResourceType: auditEC2InstanceType,
 				Name:         "i-1234567890abcdef0",
 			},
 			validate: func(key string) bool {
-				return key == "my-stack|prod|ec2/instance|i-1234567890abcdef0"
+				return key == auditMyStack+"|prod|"+auditEC2InstanceType+"|i-1234567890abcdef0"
 			},
 		},
 		{
@@ -239,7 +252,7 @@ func TestMatchedResourceKey(t *testing.T) {
 }
 
 func TestAssignResourceStatus(t *testing.T) {
-	contract := inventory.Contract{StackTag: "my-stack", RepoTag: "my-repo", LayerTag: "api"}
+	contract := inventory.Contract{StackTag: auditMyStack, RepoTag: "my-repo", LayerTag: "api"}
 	tests := []struct {
 		name         string
 		managedBy    string
@@ -254,7 +267,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "owned resource all tags correct",
 			managedBy:    "terraform",
-			stack:        "my-stack",
+			stack:        auditMyStack,
 			environment:  "prod",
 			env:          "prod",
 			missingCore:  []string{},
@@ -265,7 +278,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "owned resource missing ownership tags",
 			managedBy:    "terraform",
-			stack:        "my-stack",
+			stack:        auditMyStack,
 			environment:  "prod",
 			env:          "prod",
 			missingCore:  []string{},
@@ -276,7 +289,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "owned resource wrong env",
 			managedBy:    "terraform",
-			stack:        "my-stack",
+			stack:        auditMyStack,
 			environment:  "dev",
 			env:          "prod",
 			missingCore:  []string{},
@@ -298,7 +311,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "other managed with stack tag",
 			managedBy:    "",
-			stack:        "other-stack",
+			stack:        auditOtherStack,
 			environment:  "prod",
 			env:          "prod",
 			missingCore:  []string{"ManagedBy"},
@@ -309,7 +322,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "other managed terraform without matching stack",
 			managedBy:    "terraform",
-			stack:        "other-stack",
+			stack:        auditOtherStack,
 			environment:  "prod",
 			env:          "prod",
 			missingCore:  []string{},
@@ -331,7 +344,7 @@ func TestAssignResourceStatus(t *testing.T) {
 		{
 			name:         "other managed terraform with missing ownership",
 			managedBy:    "terraform",
-			stack:        "other-stack",
+			stack:        auditOtherStack,
 			environment:  "prod",
 			env:          "prod",
 			missingCore:  []string{},
@@ -368,23 +381,23 @@ func TestAppendMissingTagIssue(t *testing.T) {
 	}{
 		{
 			name:      "no missing tags",
-			prefix:    "missing core tags",
+			prefix:    auditMissingCoreTags,
 			missing:   []string{},
 			wantIssue: false,
 		},
 		{
 			name:        "single missing tag",
-			prefix:      "missing core tags",
+			prefix:      auditMissingCoreTags,
 			missing:     []string{"ManagedBy"},
 			wantIssue:   true,
-			wantContent: "missing core tags: ManagedBy",
+			wantContent: auditMissingCoreTags + ": ManagedBy",
 		},
 		{
 			name:        "multiple missing tags",
-			prefix:      "missing core tags",
+			prefix:      auditMissingCoreTags,
 			missing:     []string{"ManagedBy", "Stack", "Environment"},
 			wantIssue:   true,
-			wantContent: "missing core tags: ManagedBy, Stack, Environment",
+			wantContent: auditMissingCoreTags + ": ManagedBy, Stack, Environment",
 		},
 		{
 			name:        "ownership tags prefix",

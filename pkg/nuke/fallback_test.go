@@ -84,6 +84,85 @@ const (
 	errorNotFound              = "not found"
 )
 
+const (
+	backendLocalHCLFile                = "backend.local.hcl"
+	testResourceTypeExtra              = "service/type/extra"
+	errorThrottling                    = "throttling error"
+	errorDependencyViolation           = "dependency violation"
+	errorUnknown                       = "unknown error"
+	cfnTypeIAMRole                     = "AWS::IAM::Role"
+	testRoleName                       = "test-role"
+	cfnTypeLambdaFunction              = "AWS::Lambda::Function"
+	testFunctionName                   = "my-function"
+	stackPurgePrefix                   = "stack-purge-"
+	cfnTypeS3Bucket                    = "AWS::S3::Bucket"
+	errorAccessDenied                  = "access denied"
+	cfnTypeSNSTopic                    = "AWS::SNS::Topic"
+	testMyBucket                       = "my-bucket"
+	cfnTypeDynamoDBTable               = "AWS::DynamoDB::Table"
+	testFuncName                       = "my-func"
+	cfnTypeLogsLogGroup                = "AWS::Logs::LogGroup"
+	resourceTypeLogsLogGroup           = "logs/log-group"
+	cfnTypeACMCertificate              = "AWS::CertificateManager::Certificate"
+	resourceTypeACMCertificate         = "acm/certificate"
+	otherStateKey                      = "other.tfstate"
+	errorDeleteFailed                  = "delete failed"
+	testTokenID                        = "token-123"
+	errDeleteMatchingBucketVersionsFmt = "deleteMatchingBucketVersions error: %v"
+	msgExpectedError                   = "expected error"
+	locksJSONFile                      = "locks.json"
+	testLockTableName                  = "locks-table"
+	errLenItemsWant2                   = "len(items) = %d, want 2"
+	errorScanFailed                    = "scan failed"
+	msgMappingShouldExist              = "mapping should exist"
+	resourceTypeAPIGatewayV2API        = "apigatewayv2/api"
+	cfnTypeAPIGatewayV2API             = "AWS::ApiGatewayV2::Api"
+	resourceTypeCloudTrailTrail        = "cloudtrail/trail"
+	cfnTypeCloudTrailTrail             = "AWS::CloudTrail::Trail"
+	cfnTypeCloudFrontDistribution      = "AWS::CloudFront::Distribution"
+	resourceTypeCloudFrontDistribution = "cloudfront/distribution"
+	cfnTypeRoute53HostedZone           = "AWS::Route53::HostedZone"
+	resourceTypeRoute53HostedZone      = "route53/hostedzone"
+	resourceTypeKMSKey                 = "kms/key"
+	cfnTypeKMSKey                      = "AWS::KMS::Key"
+	errUnexpectedFmt                   = "unexpected error: %v"
+	errSetupFmt                        = "setup: %v"
+	testBucketName                     = "test-bucket"
+	testTokenID1                       = "token-1"
+	testLambdaARNMyFunc                = "arn:aws:lambda:us-east-1:123456789012:function:my-func"
+	testInlinePolicy1                  = "inline-policy-1"
+	testInlinePolicy2                  = "inline-policy-2"
+	testResourceTypeUnknown            = "unknown/type"
+	errorParseFailed                   = "parse failed"
+	errorBackendConfigIncomplete       = "backend config incomplete"
+	testPolicy1Name                    = "policy-1"
+	testPolicy2Name                    = "policy-2"
+	errorService                       = "service error"
+	errFmtV                            = "error: %v"
+	testOtherKey                       = "other-key"
+	msgExpectedResponse                = "expected response"
+	errUnexpectedCFNTypeFmt            = "unexpected cfn type: %s"
+	errExpectedEmptyARNFmt             = "expected empty for invalid ARN, got %s"
+	testLambdaARNFunc                  = "arn:aws:lambda:us-east-1:123456789012:function:func"
+	errorTerraformFailed               = "terraform failed"
+	errorSetupFailed                   = "error setup failed"
+	dotTerraformDir                    = ".terraform"
+	testTableName                      = "test-table"
+	testRootCause                      = "root cause"
+	errExpectedZeroItemsFmt            = "expected 0 items, got %d"
+	msgErrorSetupShouldExist           = "error setup should exist"
+	testTargetKey                      = "target-key"
+	errExpectedErrorGotFmt             = "expected error %v, got %v"
+	testPolicyARN1                     = "arn:aws:iam::123456789012:policy/policy-1"
+	errExpectedOneDeleteRolePolicyFmt  = "expected 1 DeleteRolePolicy call, got %d"
+	errExpectedOneDetachRolePolicyFmt  = "expected 1 DetachRolePolicy call, got %d"
+	errDeleteInlinePoliciesFmt         = "deleteInlineRolePolicies should succeed, got error: %v"
+	errDetachAttachedPoliciesFmt       = "detachAttachedRolePolicies should succeed, got error: %v"
+	errorResourceInUse                 = "resource in use"
+	errExpectedSuccessFmt              = "expected success, got error: %v"
+	errExpectedOneDeleteBucketFmt      = "expected 1 DeleteBucket call, got %d"
+)
+
 func TestOwnedResourcesForFallbackSortsByPriority(t *testing.T) {
 	resources := []sharedaudit.Resource{
 		{Status: "OWNED", ResourceType: resourceTypeLambdaFunction, Name: "zeta"},
@@ -104,7 +183,7 @@ func TestLoadBackendStateConfigForNukeUsesLocalOverrideWhenPresent(t *testing.T)
 	root := t.TempDir()
 	stack := filepath.Join(root, "stack")
 	parse := func(path string) (map[string]string, error) {
-		if filepath.Base(path) == "backend.local.hcl" {
+		if filepath.Base(path) == backendLocalHCLFile {
 			return map[string]string{"bucket": "override", "dynamodb_table": "locks-local"}, nil
 		}
 		return map[string]string{"bucket": "default", "dynamodb_table": "locks", "key": defaultStateKey}, nil
@@ -148,7 +227,7 @@ func TestParseServiceType(t *testing.T) {
 		{resourceTypeIAMRole, "iam", resourceTypeIAMRole},
 		{"s3", "s3", "s3"},
 		{resourceTypeDynamoDBTable, "dynamodb", resourceTypeDynamoDBTable},
-		{"service/type/extra", "service", "service/type/extra"},
+		{testResourceTypeExtra, "service", testResourceTypeExtra},
 	}
 	for _, tt := range tests {
 		t.Run(tt.resourceType, func(t *testing.T) {
@@ -172,16 +251,16 @@ func TestClassifyPurgeDeleteError(t *testing.T) {
 		{errorNotFound, errors.New(errorNotFound), purgeFailureGone},
 		{"nosuchentity", errors.New("NoSuchEntity"), purgeFailureGone},
 		{"nosuchbucket", errors.New("NoSuchBucket"), purgeFailureGone},
-		{"throttling", errors.New("throttling error"), purgeFailureRetryable},
+		{"throttling", errors.New(errorThrottling), purgeFailureRetryable},
 		{"rate exceeded", errors.New("rate exceeded"), purgeFailureRetryable},
 		{"too many requests", errors.New("too many requests"), purgeFailureRetryable},
 		{"unsupported", errors.New("unsupported operation"), purgeFailureManual},
 		{"does not support delete", errors.New("does not support delete"), purgeFailureManual},
 		{"typenotfound", errors.New("TypeNotFound"), purgeFailureManual},
-		{"dependency", errors.New("dependency violation"), purgeFailureBlocked},
+		{"dependency", errors.New(errorDependencyViolation), purgeFailureBlocked},
 		{"resourceinuse", errors.New("ResourceInUse"), purgeFailureBlocked},
 		{"targets", errors.New("targets depend on this"), purgeFailureBlocked},
-		{"unknown error", errors.New("unknown error"), purgeFailureFatal},
+		{errorUnknown, errors.New(errorUnknown), purgeFailureFatal},
 		{"manual error", &purgeManualError{cause: errors.New("test")}, purgeFailureManual},
 	}
 	for _, tt := range tests {
@@ -201,22 +280,22 @@ func TestPurgeClientToken(t *testing.T) {
 		checkFn    func(token string) bool
 	}{
 		{
-			cfnType:    "AWS::IAM::Role",
-			identifier: "test-role",
+			cfnType:    cfnTypeIAMRole,
+			identifier: testRoleName,
 			stackTag:   "prod",
 			checkFn:    func(t string) bool { return strings.HasPrefix(t, "prod-purge-") && len(t) > 11 },
 		},
 		{
-			cfnType:    "AWS::Lambda::Function",
-			identifier: "my-function",
+			cfnType:    cfnTypeLambdaFunction,
+			identifier: testFunctionName,
 			stackTag:   "",
-			checkFn:    func(t string) bool { return strings.HasPrefix(t, "stack-purge-") && len(t) > 12 },
+			checkFn:    func(t string) bool { return strings.HasPrefix(t, stackPurgePrefix) && len(t) > 12 },
 		},
 		{
-			cfnType:    "AWS::S3::Bucket",
+			cfnType:    cfnTypeS3Bucket,
 			identifier: "bucket-name",
 			stackTag:   "  ",
-			checkFn:    func(t string) bool { return strings.HasPrefix(t, "stack-purge-") && len(t) > 12 },
+			checkFn:    func(t string) bool { return strings.HasPrefix(t, stackPurgePrefix) && len(t) > 12 },
 		},
 	}
 	for i, tt := range tests {
@@ -265,7 +344,7 @@ func TestIsS3BucketMissing(t *testing.T) {
 		{"nil", nil, false},
 		{"s3 not found type", &s3types.NotFound{}, true},
 		{"generic not found error", errors.New(errorNotFound), true},
-		{"s3 error other", errors.New("access denied"), false},
+		{"s3 error other", errors.New(errorAccessDenied), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -285,14 +364,14 @@ func TestArnToCloudControl(t *testing.T) {
 		wantCfnType  string
 		wantID       string
 	}{
-		{"arn:aws:sns:us-east-1:123456789:topic", "sns", "topic", "topic", "AWS::SNS::Topic", "arn:aws:sns:us-east-1:123456789:topic"},
-		{"", "s3", "bucket", "my-bucket", "AWS::S3::Bucket", "my-bucket"},
-		{"", "dynamodb", resourceTypeDynamoDBTable, "users", "AWS::DynamoDB::Table", "users"},
-		{"arn:aws:lambda:us-east-1:123456789:function:my-func", "lambda", resourceTypeLambdaFunction, "my-func", "AWS::Lambda::Function", "my-func"},
-		{"", "iam", resourceTypeIAMRole, "service-role", "AWS::IAM::Role", "service-role"},
+		{"arn:aws:sns:us-east-1:123456789:topic", "sns", "topic", "topic", cfnTypeSNSTopic, "arn:aws:sns:us-east-1:123456789:topic"},
+		{"", "s3", "bucket", testMyBucket, cfnTypeS3Bucket, testMyBucket},
+		{"", "dynamodb", resourceTypeDynamoDBTable, "users", cfnTypeDynamoDBTable, "users"},
+		{"arn:aws:lambda:us-east-1:123456789:function:my-func", "lambda", resourceTypeLambdaFunction, testFuncName, cfnTypeLambdaFunction, testFuncName},
+		{"", "iam", resourceTypeIAMRole, "service-role", cfnTypeIAMRole, "service-role"},
 		{"arn:aws:unknown:us-east-1:123456789:unknown", "unknown", "unknown", "resource", "", ""},
-		{"", "logs", "logs/log-group", "/aws/lambda/group", "AWS::Logs::LogGroup", "/aws/lambda/group"},
-		{"arn:aws:acm:us-east-1:123456789:certificate/abc-123", "acm", "acm/certificate", "", "AWS::CertificateManager::Certificate", "arn:aws:acm:us-east-1:123456789:certificate/abc-123"},
+		{"", "logs", resourceTypeLogsLogGroup, "/aws/lambda/group", cfnTypeLogsLogGroup, "/aws/lambda/group"},
+		{"arn:aws:acm:us-east-1:123456789:certificate/abc-123", "acm", resourceTypeACMCertificate, "", cfnTypeACMCertificate, "arn:aws:acm:us-east-1:123456789:certificate/abc-123"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.service+"/"+tt.resourceType, func(t *testing.T) {
@@ -311,7 +390,7 @@ func TestMatchesObjectKey(t *testing.T) {
 		want      bool
 	}{
 		{defaultStateKey, defaultStateKey, true},
-		{defaultStateKey, "other.tfstate", false},
+		{defaultStateKey, otherStateKey, false},
 		{defaultStateKey, "", true},
 		{"", "", true},
 		{"", defaultStateKey, false},
@@ -330,7 +409,7 @@ func TestMatchesObjectKey(t *testing.T) {
 func TestDeleteBucketVersionsPage(t *testing.T) {
 	client := &fakeStateS3Client{}
 	key := defaultStateKey
-	otherKey := "other.tfstate"
+	otherKey := otherStateKey
 	versionID1 := "v1"
 	versionID2 := "v2"
 	deleted, err := deleteBucketVersionsPage(context.Background(), client, "bucket", key, []s3types.ObjectVersion{
@@ -349,7 +428,7 @@ func TestDeleteBucketVersionsPage(t *testing.T) {
 }
 
 func TestDeleteBucketDeleteMarkersPageError(t *testing.T) {
-	client := &fakeStateS3Client{deleteErr: errors.New("delete failed")}
+	client := &fakeStateS3Client{deleteErr: errors.New(errorDeleteFailed)}
 	key := defaultStateKey
 	versionID := "m1"
 	deleted, err := deleteBucketDeleteMarkersPage(context.Background(), client, "bucket", key, []s3types.DeleteMarkerEntry{{Key: &key, VersionId: &versionID}}, 2)
@@ -406,7 +485,7 @@ func (f *fakeCloudControlClient) DeleteResource(ctx context.Context, in *cloudco
 		return &cloudcontrol.DeleteResourceOutput{
 			ProgressEvent: &cctypes.ProgressEvent{
 				OperationStatus: cctypes.OperationStatusSuccess,
-				RequestToken:    sdkaws.String("token-123"),
+				RequestToken:    sdkaws.String(testTokenID),
 			},
 		}, nil
 	}
@@ -599,9 +678,9 @@ func TestForceDeleteS3BucketEmptyBucket(t *testing.T) {
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("deleteMatchingBucketVersions error: %v", err)
+		t.Fatalf(errDeleteMatchingBucketVersionsFmt, err)
 	}
 	if deletedVersions != 0 || deletedMarkers != 0 {
 		t.Fatalf("expected 0 deletions, got %d versions and %d markers", deletedVersions, deletedMarkers)
@@ -613,16 +692,16 @@ func TestDeleteMatchingBucketVersionsWithVersions(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("deleteMatchingBucketVersions error: %v", err)
+		t.Fatalf(errDeleteMatchingBucketVersionsFmt, err)
 	}
 	if deletedVersions != 2 {
 		t.Fatalf("deletedVersions = %d, want 2", deletedVersions)
@@ -640,16 +719,16 @@ func TestDeleteMatchingBucketVersionsWithMarkers(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m2")},
 				},
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("deleteMatchingBucketVersions error: %v", err)
+		t.Fatalf(errDeleteMatchingBucketVersionsFmt, err)
 	}
 	if deletedVersions != 0 {
 		t.Fatalf("deletedVersions = %d, want 0", deletedVersions)
@@ -663,20 +742,20 @@ func TestDeleteMatchingBucketVersionsPagination(t *testing.T) {
 	client := &fakeStateS3Client{
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
-				Versions:            []s3types.ObjectVersion{{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")}},
+				Versions:            []s3types.ObjectVersion{{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")}},
 				IsTruncated:         sdkaws.Bool(true),
-				NextKeyMarker:       sdkaws.String("state.tfstate"),
+				NextKeyMarker:       sdkaws.String(defaultStateKey),
 				NextVersionIdMarker: sdkaws.String("v1"),
 			},
 			{
-				Versions: []s3types.ObjectVersion{{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")}},
+				Versions: []s3types.ObjectVersion{{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")}},
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("deleteMatchingBucketVersions error: %v", err)
+		t.Fatalf(errDeleteMatchingBucketVersionsFmt, err)
 	}
 	if deletedVersions != 2 {
 		t.Fatalf("deletedVersions = %d, want 2", deletedVersions)
@@ -689,14 +768,14 @@ func TestDeleteMatchingBucketVersionsPagination(t *testing.T) {
 func TestDeleteMatchingBucketVersionsDeleteError(t *testing.T) {
 	client := &fakeStateS3Client{
 		listOutputs: []*s3.ListObjectVersionsOutput{
-			{Versions: []s3types.ObjectVersion{{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")}}},
+			{Versions: []s3types.ObjectVersion{{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")}}},
 		},
-		deleteErr: errors.New("access denied"),
+		deleteErr: errors.New(errorAccessDenied),
 	}
 
-	_, _, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	_, _, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -705,9 +784,9 @@ func TestDeleteMatchingBucketVersionsListError(t *testing.T) {
 		listErrs: []error{errors.New("list failed")},
 	}
 
-	_, _, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	_, _, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -716,7 +795,7 @@ func TestDeleteMatchingBucketVersionsBucketMissing(t *testing.T) {
 		listErrs: []error{&s3types.NotFound{}},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), client, "bucket", defaultStateKey)
 	if err != nil {
 		t.Fatalf("expected nil for missing bucket, got %v", err)
 	}
@@ -731,7 +810,7 @@ func TestDeleteMatchingBucketVersionsBucketMissing(t *testing.T) {
 
 func TestBackupLockEntriesSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetPath := filepath.Join(tmpDir, "locks.json")
+	targetPath := filepath.Join(tmpDir, locksJSONFile)
 
 	client := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
@@ -740,19 +819,19 @@ func TestBackupLockEntriesSuccess(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	items, err := backupLockEntries(context.Background(), client, "locks-table", "state.tfstate", targetPath)
+	items, err := backupLockEntries(context.Background(), client, testLockTableName, defaultStateKey, targetPath)
 	if err != nil {
 		t.Fatalf("backupLockEntries error: %v", err)
 	}
 	if len(items) != 2 {
-		t.Fatalf("len(items) = %d, want 2", len(items))
+		t.Fatalf(errLenItemsWant2, len(items))
 	}
 
 	if _, err := os.Stat(targetPath); err != nil {
@@ -762,18 +841,18 @@ func TestBackupLockEntriesSuccess(t *testing.T) {
 
 func TestBackupLockEntriesScanError(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetPath := filepath.Join(tmpDir, "locks.json")
+	targetPath := filepath.Join(tmpDir, locksJSONFile)
 
 	client := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
 			{Table: &dbtypes.TableDescription{}},
 		},
-		scanErrs: []error{errors.New("scan failed")},
+		scanErrs: []error{errors.New(errorScanFailed)},
 	}
 
-	_, err := backupLockEntries(context.Background(), client, "locks-table", "state.tfstate", targetPath)
+	_, err := backupLockEntries(context.Background(), client, testLockTableName, defaultStateKey, targetPath)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -783,12 +862,12 @@ func TestBackupLockEntriesScanError(t *testing.T) {
 
 func TestDeleteMarkerManifestEntry(t *testing.T) {
 	marker := s3types.DeleteMarkerEntry{
-		Key:       sdkaws.String("state.tfstate"),
+		Key:       sdkaws.String(defaultStateKey),
 		VersionId: sdkaws.String("m123"),
 		IsLatest:  sdkaws.Bool(true),
 	}
 
-	entry := deleteMarkerManifestEntry("state.tfstate", marker)
+	entry := deleteMarkerManifestEntry(defaultStateKey, marker)
 
 	if entry["delete_marker"] != true {
 		t.Fatalf("delete_marker = %v, want true", entry["delete_marker"])
@@ -810,19 +889,19 @@ func TestScanLockEntriesSuccess(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	items, err := scanLockEntries(context.Background(), client, "table", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err != nil {
 		t.Fatalf("scanLockEntries error: %v", err)
 	}
 	if len(items) != 2 {
-		t.Fatalf("len(items) = %d, want 2", len(items))
+		t.Fatalf(errLenItemsWant2, len(items))
 	}
 }
 
@@ -834,26 +913,26 @@ func TestScanLockEntriesPagination(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 				LastEvaluatedKey: map[string]dbtypes.AttributeValue{
-					"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"},
+					"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey},
 				},
 			},
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	items, err := scanLockEntries(context.Background(), client, "table", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err != nil {
 		t.Fatalf("scanLockEntries error: %v", err)
 	}
 	if len(items) != 2 {
-		t.Fatalf("len(items) = %d, want 2", len(items))
+		t.Fatalf(errLenItemsWant2, len(items))
 	}
 }
 
@@ -862,7 +941,7 @@ func TestScanLockEntriesTableMissing(t *testing.T) {
 		describeErrs: []error{&dbtypes.ResourceNotFoundException{}},
 	}
 
-	items, err := scanLockEntries(context.Background(), client, "table", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err != nil {
 		t.Fatalf("expected nil for missing table, got %v", err)
 	}
@@ -876,12 +955,12 @@ func TestScanLockEntriesScanError(t *testing.T) {
 		describeOutputs: []*dynamodb.DescribeTableOutput{
 			{Table: &dbtypes.TableDescription{}},
 		},
-		scanErrs: []error{errors.New("scan failed")},
+		scanErrs: []error{errors.New(errorScanFailed)},
 	}
 
-	_, err := scanLockEntries(context.Background(), client, "table", "state.tfstate")
+	_, err := scanLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -921,15 +1000,15 @@ func TestDeleteLockEntriesSuccess(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{nil, nil},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err != nil {
 		t.Fatalf("deleteLockEntries error: %v", err)
 	}
@@ -945,7 +1024,7 @@ func TestDeleteLockEntriesEmpty(t *testing.T) {
 		},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err != nil {
 		t.Fatalf("deleteLockEntries error: %v", err)
 	}
@@ -959,16 +1038,16 @@ func TestDeleteLockEntriesDeleteError(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
-		deleteItemErrs: []error{errors.New("delete failed")},
+		deleteItemErrs: []error{errors.New(errorDeleteFailed)},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, "table", defaultStateKey)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -977,31 +1056,31 @@ func TestDeleteLockEntriesDeleteError(t *testing.T) {
 // ============================================================================
 
 func TestCloudControlTypedMappingDynamoDB(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("dynamodb", "dynamodb/table")
+	mapping, ok := cloudControlTypedMapping("dynamodb", resourceTypeDynamoDBTable)
 	if !ok {
-		t.Fatal("mapping should exist")
+		t.Fatal(msgMappingShouldExist)
 	}
-	if mapping.cfnType != "AWS::DynamoDB::Table" {
+	if mapping.cfnType != cfnTypeDynamoDBTable {
 		t.Fatalf("cfnType = %q, want AWS::DynamoDB::Table", mapping.cfnType)
 	}
 }
 
 func TestCloudControlTypedMappingLambda(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("lambda", "lambda/function")
+	mapping, ok := cloudControlTypedMapping("lambda", resourceTypeLambdaFunction)
 	if !ok {
-		t.Fatal("mapping should exist")
+		t.Fatal(msgMappingShouldExist)
 	}
-	if mapping.cfnType != "AWS::Lambda::Function" {
+	if mapping.cfnType != cfnTypeLambdaFunction {
 		t.Fatalf("cfnType = %q, want AWS::Lambda::Function", mapping.cfnType)
 	}
 }
 
 func TestCloudControlTypedMappingLogs(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("logs", "logs/log-group")
+	mapping, ok := cloudControlTypedMapping("logs", resourceTypeLogsLogGroup)
 	if !ok {
-		t.Fatal("mapping should exist")
+		t.Fatal(msgMappingShouldExist)
 	}
-	if mapping.cfnType != "AWS::Logs::LogGroup" {
+	if mapping.cfnType != cfnTypeLogsLogGroup {
 		t.Fatalf("cfnType = %q, want AWS::Logs::LogGroup", mapping.cfnType)
 	}
 }
@@ -1012,12 +1091,12 @@ func TestCloudControlTypedMappingAllTypes(t *testing.T) {
 		resourceType string
 		wantCfnType  string
 	}{
-		{"apigatewayv2", "apigatewayv2/api", "AWS::ApiGatewayV2::Api"},
-		{"cloudtrail", "cloudtrail/trail", "AWS::CloudTrail::Trail"},
-		{"acm", "acm/certificate", "AWS::CertificateManager::Certificate"},
-		{"cloudfront", "cloudfront/distribution", "AWS::CloudFront::Distribution"},
-		{"route53", "route53/hostedzone", "AWS::Route53::HostedZone"},
-		{"kms", "kms/key", "AWS::KMS::Key"},
+		{"apigatewayv2", resourceTypeAPIGatewayV2API, cfnTypeAPIGatewayV2API},
+		{"cloudtrail", resourceTypeCloudTrailTrail, cfnTypeCloudTrailTrail},
+		{"acm", resourceTypeACMCertificate, cfnTypeACMCertificate},
+		{"cloudfront", resourceTypeCloudFrontDistribution, cfnTypeCloudFrontDistribution},
+		{"route53", resourceTypeRoute53HostedZone, cfnTypeRoute53HostedZone},
+		{"kms", resourceTypeKMSKey, cfnTypeKMSKey},
 	}
 
 	for _, tt := range tests {
@@ -1099,7 +1178,7 @@ func TestRunFallbackCleanupMissingReporter(t *testing.T) {
 		t.Fatal("expected error for missing reporter")
 	}
 	if !strings.Contains(err.Error(), "reporter is required") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1112,7 +1191,7 @@ func TestRunFallbackCleanupMissingScanFunction(t *testing.T) {
 		t.Fatal("expected error for missing scan function")
 	}
 	if !strings.Contains(err.Error(), "scan function is required") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1126,7 +1205,7 @@ func TestRunFallbackCleanupMissingParseFunction(t *testing.T) {
 		t.Fatal("expected error for missing parse function")
 	}
 	if !strings.Contains(err.Error(), "parse function is required") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1137,10 +1216,10 @@ func TestRunFallbackCleanupNoOwnedResources(t *testing.T) {
 
 	envDir := filepath.Join(tmpDir, "envs", "test")
 	if err := os.MkdirAll(envDir, 0755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 	if err := os.WriteFile(filepath.Join(envDir, "backend.hcl"), []byte("bucket = \"test-bucket\"\ndynamodb_table = \"locks\"\nkey = \"state.tfstate\"\n"), 0644); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	err := RunFallbackCleanup(context.Background(), errors.New("test cause"), FallbackOptions{
@@ -1150,7 +1229,7 @@ func TestRunFallbackCleanupNoOwnedResources(t *testing.T) {
 			return []sharedaudit.Resource{}, nil
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return map[string]string{"bucket": "test-bucket", "dynamodb_table": "locks", "key": "state.tfstate"}, nil
+			return map[string]string{"bucket": testBucketName, "dynamodb_table": "locks", "key": defaultStateKey}, nil
 		},
 		CountPart: func(label string, value int) string { return label },
 		Root:      tmpDir,
@@ -1171,7 +1250,7 @@ func TestRunFallbackCleanupScanError(t *testing.T) {
 	err := RunFallbackCleanup(context.Background(), errors.New("test cause"), FallbackOptions{
 		Reporter: reporter,
 		ScanResources: func(ctx context.Context) ([]sharedaudit.Resource, error) {
-			return nil, errors.New("scan failed")
+			return nil, errors.New(errorScanFailed)
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
 			return map[string]string{}, nil
@@ -1184,7 +1263,7 @@ func TestRunFallbackCleanupScanError(t *testing.T) {
 		t.Fatal("expected scan error")
 	}
 	if !strings.Contains(err.Error(), "scan owned resources for fallback") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1196,7 +1275,7 @@ func TestRunManagedSDKFallbackNukeSuccess(t *testing.T) {
 	originalCC := newCloudControlClient
 	cc := &fakeCloudControlClient{
 		deleteOutputs: []*cloudcontrol.DeleteResourceOutput{
-			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String("token-1")}},
+			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String(testTokenID1)}},
 		},
 		statusOutputs: []*cloudcontrol.GetResourceRequestStatusOutput{
 			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess}},
@@ -1207,7 +1286,7 @@ func TestRunManagedSDKFallbackNukeSuccess(t *testing.T) {
 
 	reporter := &fakeReporter{}
 	resources := []sharedaudit.Resource{
-		{ResourceType: "lambda/function", Name: "my-func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:my-func"},
+		{ResourceType: resourceTypeLambdaFunction, Name: testFuncName, Status: "OWNED", ARN: testLambdaARNMyFunc},
 	}
 
 	summary, err := runManagedSDKFallbackNuke(context.Background(), sdkaws.Config{}, reporter, resources)
@@ -1226,7 +1305,7 @@ func TestRunManagedSDKFallbackNukeResourceGone(t *testing.T) {
 	reporter := &fakeReporter{}
 
 	resources := []sharedaudit.Resource{
-		{ResourceType: "lambda/function", Name: "missing-func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:missing-func"},
+		{ResourceType: resourceTypeLambdaFunction, Name: "missing-func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:missing-func"},
 	}
 
 	originalCC := newCloudControlClient
@@ -1252,7 +1331,7 @@ func TestRunManagedSDKFallbackNukeResourceGone(t *testing.T) {
 func TestForceDeleteIAMRoleDeletesInlinePolicies(t *testing.T) {
 	client := &fakeIAMClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"inline-policy-1", "inline-policy-2"}},
+			{PolicyNames: []string{testInlinePolicy1, testInlinePolicy2}},
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{}},
@@ -1275,7 +1354,7 @@ func TestForceDeleteS3BucketDeletesVersions(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
 				},
 			},
 		},
@@ -1293,18 +1372,18 @@ func TestForceDeleteS3BucketDeletesVersions(t *testing.T) {
 func TestDeleteManagedResourceWithFallbackCloudControl(t *testing.T) {
 	cc := &fakeCloudControlClient{
 		deleteOutputs: []*cloudcontrol.DeleteResourceOutput{
-			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String("token-123")}},
+			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String(testTokenID)}},
 		},
 		statusOutputs: []*cloudcontrol.GetResourceRequestStatusOutput{
 			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess}},
 		},
 	}
 	resource := sharedaudit.Resource{
-		ResourceType: "lambda/function",
-		Name:         "my-func",
+		ResourceType: resourceTypeLambdaFunction,
+		Name:         testFuncName,
 		Status:       "OWNED",
 		Stack:        "prod",
-		ARN:          "arn:aws:lambda:us-east-1:123456789012:function:my-func",
+		ARN:          testLambdaARNMyFunc,
 	}
 
 	fakeIAM := &fakeIAMDeleteClient{
@@ -1320,7 +1399,7 @@ func TestDeleteManagedResourceWithFallbackCloudControl(t *testing.T) {
 func TestDeleteManagedResourceWithFallbackNoStrategy(t *testing.T) {
 	cc := &fakeCloudControlClient{}
 	resource := sharedaudit.Resource{
-		ResourceType: "unknown/type",
+		ResourceType: testResourceTypeUnknown,
 		Name:         "unknown",
 		Status:       "OWNED",
 		Stack:        "prod",
@@ -1332,28 +1411,28 @@ func TestDeleteManagedResourceWithFallbackNoStrategy(t *testing.T) {
 		t.Fatal("expected error for unknown resource type")
 	}
 	if !strings.Contains(err.Error(), "no delete strategy") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 func TestDeleteManagedResourceWithFallbackDeleteError(t *testing.T) {
 	cc := &fakeCloudControlClient{
-		deleteErrs: []error{errors.New("access denied")},
+		deleteErrs: []error{errors.New(errorAccessDenied)},
 	}
 	resource := sharedaudit.Resource{
-		ResourceType: "lambda/function",
-		Name:         "my-func",
+		ResourceType: resourceTypeLambdaFunction,
+		Name:         testFuncName,
 		Status:       "OWNED",
 		Stack:        "prod",
-		ARN:          "arn:aws:lambda:us-east-1:123456789012:function:my-func",
+		ARN:          testLambdaARNMyFunc,
 	}
 
 	err := deleteManagedResourceWithFallback(context.Background(), cc, &fakeIAMDeleteClient{}, &fakeStateS3Client{}, resource)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1370,7 +1449,7 @@ func TestResetBackendStateForNukeConfigError(t *testing.T) {
 		Stack:     tmpDir,
 		Env:       "test",
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return nil, errors.New("parse failed")
+			return nil, errors.New(errorParseFailed)
 		},
 	}
 
@@ -1378,8 +1457,8 @@ func TestResetBackendStateForNukeConfigError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected config error")
 	}
-	if !strings.Contains(err.Error(), "parse failed") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorParseFailed) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1392,7 +1471,7 @@ func TestResetBackendStateForNukeIncompleteConfig(t *testing.T) {
 		Stack:     tmpDir,
 		Env:       "test",
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return map[string]string{"bucket": "test-bucket"}, nil
+			return map[string]string{"bucket": testBucketName}, nil
 		},
 	}
 
@@ -1400,8 +1479,8 @@ func TestResetBackendStateForNukeIncompleteConfig(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected incomplete config error")
 	}
-	if !strings.Contains(err.Error(), "backend config incomplete") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorBackendConfigIncomplete) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1414,7 +1493,7 @@ func TestResetBackendStateForNukeIncompleteConfig(t *testing.T) {
 func TestForceDeleteIAMRoleSuccessWithInlinePolicies(t *testing.T) {
 	iamClient := &fakeIAMClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"inline-policy-1", "inline-policy-2"}},
+			{PolicyNames: []string{testInlinePolicy1, testInlinePolicy2}},
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{}},
@@ -1454,7 +1533,7 @@ func TestForceDeleteIAMRoleErrorDuringInlinePolicyDeletion(t *testing.T) {
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{PolicyNames: []string{"inline-policy"}},
 		},
-		deleteRolePolicyErrs: []error{errors.New("access denied")},
+		deleteRolePolicyErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	if len(iamClient.deleteRolePolicyErrs) == 0 {
@@ -1499,8 +1578,8 @@ func TestForceDeleteIAMRoleRoleNotFound(t *testing.T) {
 func TestDeleteInlineRolePoliciesPagination(t *testing.T) {
 	iamClient := &fakeIAMClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"policy-1"}, IsTruncated: true, Marker: sdkaws.String("marker1")},
-			{PolicyNames: []string{"policy-2"}, IsTruncated: false},
+			{PolicyNames: []string{testPolicy1Name}, IsTruncated: true, Marker: sdkaws.String("marker1")},
+			{PolicyNames: []string{testPolicy2Name}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{nil, nil},
 	}
@@ -1512,7 +1591,7 @@ func TestDeleteInlineRolePoliciesPagination(t *testing.T) {
 
 func TestDeleteInlineRolePoliciesError(t *testing.T) {
 	iamClient := &fakeIAMClient{
-		listRolePoliciesErrs: []error{errors.New("service error")},
+		listRolePoliciesErrs: []error{errors.New(errorService)},
 	}
 
 	if iamClient.listRolePoliciesIndex == 0 {
@@ -1557,7 +1636,7 @@ func TestDetachAttachedRolePoliciesPagination(t *testing.T) {
 
 func TestDetachAttachedRolePoliciesError(t *testing.T) {
 	iamClient := &fakeIAMClient{
-		listAttachedErrs: []error{errors.New("service error")},
+		listAttachedErrs: []error{errors.New(errorService)},
 	}
 
 	if iamClient.listAttachedIndex == 0 {
@@ -1582,19 +1661,19 @@ func TestForceDeleteS3BucketWithVersionsAndMarkers(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m1")},
 				},
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deletedVersions != 2 || deletedMarkers != 1 {
 		t.Fatalf("expected 2 versions and 1 marker, got %d versions and %d markers", deletedVersions, deletedMarkers)
@@ -1606,7 +1685,7 @@ func TestForceDeleteS3BucketBucketNotFound(t *testing.T) {
 		listErrs: []error{errors.New("NoSuchBucket")},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err == nil {
 		t.Fatal("expected error for bucket not found, but got success")
 	}
@@ -1621,19 +1700,19 @@ func TestForceDeleteS3BucketVersionDeletionError(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
 				},
 			},
 		},
-		deleteErr: errors.New("access denied"),
+		deleteErr: errors.New(errorAccessDenied),
 	}
 
-	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err == nil {
 		t.Fatal("expected delete error")
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1642,16 +1721,16 @@ func TestDeleteBucketVersionsPageNonMatchingKeys(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("other-key"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(testOtherKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 			},
 		},
 	}
 
-	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deletedVersions != 1 {
 		t.Fatalf("expected 1 version (filtered), got %d", deletedVersions)
@@ -1666,16 +1745,16 @@ func TestDeleteBucketDeleteMarkersNonMatchingKeys(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("other-key"), VersionId: sdkaws.String("m1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m2")},
+					{Key: sdkaws.String(testOtherKey), VersionId: sdkaws.String("m1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m2")},
 				},
 			},
 		},
 	}
 
-	_, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	_, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deletedMarkers != 1 {
 		t.Fatalf("expected 1 marker (filtered), got %d", deletedMarkers)
@@ -1714,22 +1793,22 @@ func TestScanLockEntriesMultiplePagesWithFiltering(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "other-key"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: testOtherKey}},
 				},
 				LastEvaluatedKey: map[string]dbtypes.AttributeValue{"id": &dbtypes.AttributeValueMemberS{Value: "marker"}},
 			},
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	items, err := scanLockEntries(context.Background(), dynamoClient, "locks-table", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), dynamoClient, testLockTableName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(items) != 2 {
 		t.Fatalf("expected 2 matching items, got %d", len(items))
@@ -1741,9 +1820,9 @@ func TestScanLockEntriesTableNotExists(t *testing.T) {
 		describeErrs: []error{&dbtypes.ResourceNotFoundException{}},
 	}
 
-	items, err := scanLockEntries(context.Background(), dynamoClient, "missing-table", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), dynamoClient, "missing-table", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if len(items) != 0 {
 		t.Fatalf("expected empty items for missing table, got %d", len(items))
@@ -1758,7 +1837,7 @@ func TestScanLockEntriesScanErrorNew(t *testing.T) {
 		scanErrs: []error{errors.New("provisioned throughput exceeded")},
 	}
 
-	_, err := scanLockEntries(context.Background(), dynamoClient, "locks-table", "state.tfstate")
+	_, err := scanLockEntries(context.Background(), dynamoClient, testLockTableName, defaultStateKey)
 	if err == nil {
 		t.Fatal("expected scan error")
 	}
@@ -1774,15 +1853,15 @@ func TestDeleteLockEntriesWithNonStringLockIDs(t *testing.T) {
 				Items: []map[string]dbtypes.AttributeValue{
 					// Item with non-string LockID (e.g., number or missing)
 					{"LockID": &dbtypes.AttributeValueMemberN{Value: "123"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks-table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, testLockTableName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	// Should skip non-string items
 }
@@ -1795,14 +1874,14 @@ func TestDeleteLockEntriesDeletionError(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
-		deleteItemErrs: []error{errors.New("access denied")},
+		deleteItemErrs: []error{errors.New(errorAccessDenied)},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks-table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, testLockTableName, defaultStateKey)
 	if err == nil {
 		t.Fatal("expected deletion error")
 	}
@@ -1810,10 +1889,10 @@ func TestDeleteLockEntriesDeletionError(t *testing.T) {
 
 func TestLockEntryMatchesWithMissingLockID(t *testing.T) {
 	item := map[string]dbtypes.AttributeValue{
-		"OtherId": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"},
+		"OtherId": &dbtypes.AttributeValueMemberS{Value: defaultStateKey},
 	}
 
-	matches := lockEntryMatches(item, "state.tfstate")
+	matches := lockEntryMatches(item, defaultStateKey)
 	if matches {
 		t.Fatal("expected false when LockID is missing")
 	}
@@ -1824,34 +1903,34 @@ func TestLockEntryMatchesWithMissingLockID(t *testing.T) {
 func TestDeleteResourceWithRetrySuccessFirstAttempt(t *testing.T) {
 	cc := &fakeCloudControlClient{
 		deleteOutputs: []*cloudcontrol.DeleteResourceOutput{
-			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String("token-1")}},
+			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String(testTokenID1)}},
 		},
 	}
 
 	resp, err := deleteResourceWithRetry(context.Background(), cc, &cloudcontrol.DeleteResourceInput{})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if resp == nil {
-		t.Fatal("expected response")
+		t.Fatal(msgExpectedResponse)
 	}
 }
 
 func TestDeleteResourceWithRetryRetryableErrorThenSuccess(t *testing.T) {
 	cc := &fakeCloudControlClient{
 		deleteErrs: []error{
-			errors.New("throttling error"),
+			errors.New(errorThrottling),
 			nil, // Success on retry
 		},
 		deleteOutputs: []*cloudcontrol.DeleteResourceOutput{
 			nil, // Skipped due to error
-			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String("token-1")}},
+			{ProgressEvent: &cctypes.ProgressEvent{OperationStatus: cctypes.OperationStatusSuccess, RequestToken: sdkaws.String(testTokenID1)}},
 		},
 	}
 
 	resp, err := deleteResourceWithRetry(context.Background(), cc, &cloudcontrol.DeleteResourceInput{})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if resp == nil {
 		t.Fatal("expected response after retry")
@@ -1861,7 +1940,7 @@ func TestDeleteResourceWithRetryRetryableErrorThenSuccess(t *testing.T) {
 func TestDeleteResourceWithRetryMaxRetriesExceeded(t *testing.T) {
 	errs := make([]error, 6)
 	for i := 0; i < 6; i++ {
-		errs[i] = errors.New("throttling error")
+		errs[i] = errors.New(errorThrottling)
 	}
 
 	cc := &fakeCloudControlClient{
@@ -1876,7 +1955,7 @@ func TestDeleteResourceWithRetryMaxRetriesExceeded(t *testing.T) {
 
 func TestDeleteResourceWithRetryNonRetryableError(t *testing.T) {
 	cc := &fakeCloudControlClient{
-		deleteErrs: []error{errors.New("access denied")},
+		deleteErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	_, err := deleteResourceWithRetry(context.Background(), cc, &cloudcontrol.DeleteResourceInput{})
@@ -1892,9 +1971,9 @@ func TestWaitForDeleteSuccessImmediately(t *testing.T) {
 		},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
@@ -1905,12 +1984,12 @@ func TestWaitForDeleteOperationFailed(t *testing.T) {
 		},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err == nil {
 		t.Fatal("expected error for failed operation")
 	}
-	if !strings.Contains(err.Error(), "delete failed") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorDeleteFailed) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -1921,7 +2000,7 @@ func TestWaitForDeleteOperationCancelComplete(t *testing.T) {
 		},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err == nil {
 		t.Fatal("expected error for cancelled operation")
 	}
@@ -1940,7 +2019,7 @@ func TestWaitForDeleteRetryableErrorDuringPolling(t *testing.T) {
 
 	cc := &fakeCloudControlClient{
 		statusErrs: []error{
-			errors.New("throttling error"),
+			errors.New(errorThrottling),
 			nil,
 		},
 		statusOutputs: []*cloudcontrol.GetResourceRequestStatusOutput{
@@ -1949,20 +2028,20 @@ func TestWaitForDeleteRetryableErrorDuringPolling(t *testing.T) {
 		},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
 func TestWaitForDeleteNonRetryableErrorDuringPolling(t *testing.T) {
 	cc := &fakeCloudControlClient{
-		statusErrs: []error{errors.New("access denied")},
+		statusErrs: []error{errors.New(errorAccessDenied)},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -1973,8 +2052,8 @@ func TestCloudControlServiceMappingSNS(t *testing.T) {
 	if !ok {
 		t.Fatal("expected SNS mapping")
 	}
-	if mapping.cfnType != "AWS::SNS::Topic" {
-		t.Fatalf("unexpected cfn type: %s", mapping.cfnType)
+	if mapping.cfnType != cfnTypeSNSTopic {
+		t.Fatalf(errUnexpectedCFNTypeFmt, mapping.cfnType)
 	}
 }
 
@@ -1983,8 +2062,8 @@ func TestCloudControlServiceMappingS3(t *testing.T) {
 	if !ok {
 		t.Fatal("expected S3 mapping")
 	}
-	if mapping.cfnType != "AWS::S3::Bucket" {
-		t.Fatalf("unexpected cfn type: %s", mapping.cfnType)
+	if mapping.cfnType != cfnTypeS3Bucket {
+		t.Fatalf(errUnexpectedCFNTypeFmt, mapping.cfnType)
 	}
 }
 
@@ -1996,19 +2075,19 @@ func TestCloudControlServiceMappingUnknown(t *testing.T) {
 }
 
 func TestArnToCloudControlIAMRole(t *testing.T) {
-	cfnType, identifier := arnToCloudControl("arn:aws:iam::123456789012:role/test-role", "iam", "iam/role", "test-role")
-	if cfnType != "AWS::IAM::Role" {
-		t.Fatalf("unexpected cfn type: %s", cfnType)
+	cfnType, identifier := arnToCloudControl("arn:aws:iam::123456789012:role/test-role", "iam", "iam/role", testRoleName)
+	if cfnType != cfnTypeIAMRole {
+		t.Fatalf(errUnexpectedCFNTypeFmt, cfnType)
 	}
-	if identifier != "test-role" {
+	if identifier != testRoleName {
 		t.Fatalf("unexpected identifier: %s", identifier)
 	}
 }
 
 func TestArnToCloudControlWithServiceMapping(t *testing.T) {
 	cfnType, identifier := arnToCloudControl("arn:aws:sns:us-east-1:123456789012:topic-name", "sns", "sns", "topic-name")
-	if cfnType != "AWS::SNS::Topic" {
-		t.Fatalf("unexpected cfn type: %s", cfnType)
+	if cfnType != cfnTypeSNSTopic {
+		t.Fatalf(errUnexpectedCFNTypeFmt, cfnType)
 	}
 	if identifier != "arn:aws:sns:us-east-1:123456789012:topic-name" {
 		t.Fatalf("unexpected identifier: %s", identifier)
@@ -2027,14 +2106,14 @@ func TestAPIGatewayIDFromARNWithParts(t *testing.T) {
 func TestAPIGatewayIDInvalidARN(t *testing.T) {
 	id := apigatewayID("", "arn:aws:apigatewayv2:us-east-1:123456789012:invalid")
 	if id != "" {
-		t.Fatalf("expected empty for invalid ARN, got %s", id)
+		t.Fatalf(errExpectedEmptyARNFmt, id)
 	}
 }
 
 func TestCloudfrontDistributionIDInvalidARN(t *testing.T) {
 	id := cloudfrontDistributionID("", "arn:aws:cloudfront::123456789012:invalid")
 	if id != "" {
-		t.Fatalf("expected empty for invalid ARN, got %s", id)
+		t.Fatalf(errExpectedEmptyARNFmt, id)
 	}
 }
 
@@ -2048,7 +2127,7 @@ func TestRoute53HostedZoneIDWithZPrefixName(t *testing.T) {
 func TestRoute53HostedZoneIDInvalidARN(t *testing.T) {
 	id := route53HostedZoneID("", "arn:aws:route53:::invalid")
 	if id != "" {
-		t.Fatalf("expected empty for invalid ARN, got %s", id)
+		t.Fatalf(errExpectedEmptyARNFmt, id)
 	}
 }
 
@@ -2077,13 +2156,13 @@ func TestClassifyPurgeDeleteErrorCaseInsensitive(t *testing.T) {
 
 func TestFormatPurgeError(t *testing.T) {
 	resource := sharedaudit.Resource{
-		ResourceType: "lambda/function",
-		Name:         "my-func",
+		ResourceType: resourceTypeLambdaFunction,
+		Name:         testFuncName,
 	}
-	err := errors.New("access denied")
+	err := errors.New(errorAccessDenied)
 
 	formatted := formatPurgeError(resource, err)
-	if !strings.Contains(formatted, "lambda/function") || !strings.Contains(formatted, "my-func") {
+	if !strings.Contains(formatted, resourceTypeLambdaFunction) || !strings.Contains(formatted, testFuncName) {
 		t.Fatalf("unexpected format: %s", formatted)
 	}
 }
@@ -2100,30 +2179,30 @@ func TestLoadBackendStateConfigMissingBucket(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing bucket")
 	}
-	if !strings.Contains(err.Error(), "backend config incomplete") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorBackendConfigIncomplete) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 func TestLoadBackendStateConfigMissingTable(t *testing.T) {
 	root := t.TempDir()
 	parse := func(path string) (map[string]string, error) {
-		return map[string]string{"bucket": "test-bucket", "key": defaultStateKey}, nil
+		return map[string]string{"bucket": testBucketName, "key": defaultStateKey}, nil
 	}
 
 	_, err := loadBackendStateConfigForNuke(root, root, "prod", parse)
 	if err == nil {
 		t.Fatal("expected error for missing table")
 	}
-	if !strings.Contains(err.Error(), "backend config incomplete") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorBackendConfigIncomplete) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 func TestLoadBackendStateConfigParseError(t *testing.T) {
 	root := t.TempDir()
 	parse := func(path string) (map[string]string, error) {
-		return nil, errors.New("parse failed")
+		return nil, errors.New(errorParseFailed)
 	}
 
 	_, err := loadBackendStateConfigForNuke(root, root, "prod", parse)
@@ -2136,10 +2215,10 @@ func TestLoadBackendStateConfigLocalOverrideError(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, "stack")
 	if err := os.MkdirAll(stack, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
-	if err := os.WriteFile(filepath.Join(stack, "backend.local.hcl"), []byte("dummy"), 0o644); err != nil {
-		t.Fatalf("setup: %v", err)
+	if err := os.WriteFile(filepath.Join(stack, backendLocalHCLFile), []byte("dummy"), 0o644); err != nil {
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	parseCount := 0
@@ -2169,11 +2248,11 @@ func TestRunFallbackCleanupLeftResidualResources(t *testing.T) {
 		ScanResources: func(ctx context.Context) ([]sharedaudit.Resource, error) {
 			// First scan returns owned resource, second scan also returns it
 			return []sharedaudit.Resource{
-				{ResourceType: "lambda/function", Name: "func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:func"},
+				{ResourceType: resourceTypeLambdaFunction, Name: "func", Status: "OWNED", ARN: testLambdaARNFunc},
 			}, nil
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return map[string]string{"bucket": "test", "dynamodb_table": "locks", "key": "state.tfstate"}, nil
+			return map[string]string{"bucket": "test", "dynamodb_table": "locks", "key": defaultStateKey}, nil
 		},
 		Root:     tempDir,
 		Stack:    tempDir,
@@ -2201,13 +2280,13 @@ func TestRunFallbackCleanupLeftResidualResources(t *testing.T) {
 		newDynamoDeleteClient = originalDynamo
 	}()
 
-	err := RunFallbackCleanup(context.Background(), errors.New("terraform failed"), opts)
+	err := RunFallbackCleanup(context.Background(), errors.New(errorTerraformFailed), opts)
 	// Should fail because second scan still finds the resource
 	if err == nil {
 		t.Fatal("expected error for residual resources")
 	}
 	if !strings.Contains(err.Error(), "left") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -2220,7 +2299,7 @@ func TestRunFallbackCleanupBlockedResource(t *testing.T) {
 		Reporter:  reporter,
 		ScanResources: func(ctx context.Context) ([]sharedaudit.Resource, error) {
 			return []sharedaudit.Resource{
-				{ResourceType: "lambda/function", Name: "func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:func"},
+				{ResourceType: resourceTypeLambdaFunction, Name: "func", Status: "OWNED", ARN: testLambdaARNFunc},
 			}, nil
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
@@ -2234,14 +2313,14 @@ func TestRunFallbackCleanupBlockedResource(t *testing.T) {
 
 	originalCC := newCloudControlClient
 	cc := &fakeCloudControlClient{
-		deleteErrs: []error{errors.New("dependency violation")},
+		deleteErrs: []error{errors.New(errorDependencyViolation)},
 	}
 	newCloudControlClient = func(cfg sdkaws.Config) cloudControlAPI { return cc }
 	defer func() { newCloudControlClient = originalCC }()
 
-	err := RunFallbackCleanup(context.Background(), errors.New("terraform failed"), opts)
+	err := RunFallbackCleanup(context.Background(), errors.New(errorTerraformFailed), opts)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
@@ -2254,7 +2333,7 @@ func TestWriteJSONFileSuccessfully(t *testing.T) {
 	// Parent directory already exists (tmpDir)
 	err := writeJSONFile(filePath, map[string]interface{}{"key": "value"})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 
 	// Verify file exists
@@ -2287,7 +2366,7 @@ func TestMarshalLockEntriesWithVariousTypes(t *testing.T) {
 
 	result, err := marshalLockEntries(items)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(result) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(result))
@@ -2311,7 +2390,7 @@ func TestDeleteResourceNativelyS3(t *testing.T) {
 }
 
 func TestDeleteResourceNativelyOther(t *testing.T) {
-	handled, _ := deleteResourceNatively(context.Background(), &fakeIAMDeleteClient{}, &fakeStateS3Client{}, sharedaudit.Resource{ResourceType: "lambda/function"})
+	handled, _ := deleteResourceNatively(context.Background(), &fakeIAMDeleteClient{}, &fakeStateS3Client{}, sharedaudit.Resource{ResourceType: resourceTypeLambdaFunction})
 	if handled {
 		t.Fatal("expected other resource types to not be handled natively")
 	}
@@ -2352,11 +2431,11 @@ func TestForceDeleteS3BucketIntegrationFullFlow(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m1")},
 				},
 				IsTruncated: sdkaws.Bool(false),
 			},
@@ -2378,7 +2457,7 @@ func TestDeleteInlineRolePolicySuccessfully(t *testing.T) {
 	// Simulate the function by checking the fake client setup
 	// This tests the error handling in deleteInlineRolePolicy
 	if len(iamClient.deleteRolePolicyErrs) == 0 {
-		t.Fatal("error setup failed")
+		t.Fatal(errorSetupFailed)
 	}
 }
 
@@ -2388,7 +2467,7 @@ func TestDeleteInlineRolePolicyNotFoundError(t *testing.T) {
 	}
 
 	if len(iamClient.deleteRolePolicyErrs) == 0 {
-		t.Fatal("error setup failed")
+		t.Fatal(errorSetupFailed)
 	}
 }
 
@@ -2398,7 +2477,7 @@ func TestDetachAttachedRolePolicySuccessfully(t *testing.T) {
 	}
 
 	if len(iamClient.detachRolePolicyErrs) == 0 {
-		t.Fatal("error setup failed")
+		t.Fatal(errorSetupFailed)
 	}
 }
 
@@ -2408,7 +2487,7 @@ func TestDetachAttachedRolePolicyNotFoundError(t *testing.T) {
 	}
 
 	if len(iamClient.detachRolePolicyErrs) == 0 {
-		t.Fatal("error setup failed")
+		t.Fatal(errorSetupFailed)
 	}
 }
 
@@ -2417,7 +2496,7 @@ func TestBackupStateVersionsSuccess(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
 				},
 			},
 		},
@@ -2432,7 +2511,7 @@ func TestBackupStateVersionsSuccess(t *testing.T) {
 
 func TestBackupStateVersionsListError(t *testing.T) {
 	s3Client := &fakeStateS3Client{
-		listErrs: []error{errors.New("access denied")},
+		listErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	// Verify error is properly set up
@@ -2453,18 +2532,18 @@ func TestDownloadBucketVersionSuccess(t *testing.T) {
 
 func TestRemoveTerraformCacheSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
-	cacheDir := filepath.Join(tmpDir, ".terraform")
+	cacheDir := filepath.Join(tmpDir, dotTerraformDir)
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 	if err := os.WriteFile(filepath.Join(cacheDir, "dummy.txt"), []byte("data"), 0o644); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	summary := &backendResetSummary{}
 	err := removeTerraformCache(cacheDir, summary)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if !summary.RemovedLocalTerraform {
 		t.Fatal("summary not updated")
@@ -2485,20 +2564,20 @@ func TestRemoveTerraformCacheNotExist(t *testing.T) {
 	err := removeTerraformCache(nonexistentDir, summary)
 	// RemoveAll doesn't error if dir doesn't exist
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 func TestBackupStateVersionEntry(t *testing.T) {
 	// Test the manifest entry creation, not the full function
 	version := s3types.ObjectVersion{
-		Key:       sdkaws.String("state.tfstate"),
+		Key:       sdkaws.String(defaultStateKey),
 		VersionId: sdkaws.String("v123"),
 		IsLatest:  sdkaws.Bool(true),
 	}
 
 	// Verify the data structures
-	if version.Key == nil || *version.Key != "state.tfstate" {
+	if version.Key == nil || *version.Key != defaultStateKey {
 		t.Fatal("version key not set")
 	}
 	if version.VersionId == nil || *version.VersionId != "v123" {
@@ -2508,12 +2587,12 @@ func TestBackupStateVersionEntry(t *testing.T) {
 
 func TestDeleteMarkerManifestEntryCreation(t *testing.T) {
 	marker := s3types.DeleteMarkerEntry{
-		Key:       sdkaws.String("state.tfstate"),
+		Key:       sdkaws.String(defaultStateKey),
 		VersionId: sdkaws.String("m123"),
 		IsLatest:  sdkaws.Bool(true),
 	}
 
-	entry := deleteMarkerManifestEntry("state.tfstate", marker)
+	entry := deleteMarkerManifestEntry(defaultStateKey, marker)
 
 	if entry["delete_marker"] != true {
 		t.Fatalf("expected delete_marker=true, got %v", entry["delete_marker"])
@@ -2541,15 +2620,15 @@ func TestBackupBackendStateSuccess(t *testing.T) {
 	}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
 	err := backupBackendState(context.Background(), s3Client, dynamoClient, cfg, backupDir, summary)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
@@ -2558,27 +2637,27 @@ func TestBackupBackendStateS3Error(t *testing.T) {
 	backupDir := filepath.Join(tmpDir, "backup")
 
 	s3Client := &fakeStateS3Client{
-		listErrs: []error{errors.New("access denied")},
+		listErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	dynamoClient := &fakeDynamoDBClient{}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
 	err := backupBackendState(context.Background(), s3Client, dynamoClient, cfg, backupDir, summary)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 }
 
 func TestBackupLockEntriesSuccessNewIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "locks.json")
+	targetFile := filepath.Join(tmpDir, locksJSONFile)
 
 	dynamoClient := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
@@ -2587,15 +2666,15 @@ func TestBackupLockEntriesSuccessNewIntegration(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	items, err := backupLockEntries(context.Background(), dynamoClient, "locks-table", "state.tfstate", targetFile)
+	items, err := backupLockEntries(context.Background(), dynamoClient, testLockTableName, defaultStateKey, targetFile)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(items))
@@ -2615,9 +2694,9 @@ func TestEnsureLockTableExistsFound(t *testing.T) {
 		},
 	}
 
-	err := ensureLockTableExists(context.Background(), dynamoClient, "locks-table")
+	err := ensureLockTableExists(context.Background(), dynamoClient, testLockTableName)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -2639,10 +2718,10 @@ func TestEnsureLockTableExistsOtherError(t *testing.T) {
 
 	err := ensureLockTableExists(context.Background(), dynamoClient, "table")
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 	if !strings.Contains(err.Error(), "throttling") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -2670,7 +2749,7 @@ func TestRunManagedSDKFallbackNukeManualCleanup(t *testing.T) {
 }
 
 func TestPurgeManualErrorUnwrap(t *testing.T) {
-	cause := errors.New("root cause")
+	cause := errors.New(testRootCause)
 	err := &purgeManualError{cause: cause, hint: "fix this"}
 
 	if err.Error() != "root cause (fix this)" {
@@ -2683,10 +2762,10 @@ func TestPurgeManualErrorUnwrap(t *testing.T) {
 }
 
 func TestPurgeManualErrorWithoutHint(t *testing.T) {
-	cause := errors.New("root cause")
+	cause := errors.New(testRootCause)
 	err := &purgeManualError{cause: cause, hint: ""}
 
-	if err.Error() != "root cause" {
+	if err.Error() != testRootCause {
 		t.Fatalf("unexpected error message: %s", err.Error())
 	}
 }
@@ -2704,7 +2783,7 @@ func TestRunFallbackCleanupManualResourceRequiresManualWork(t *testing.T) {
 			}, nil
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return map[string]string{"bucket": "test", "dynamodb_table": "locks", "key": "state.tfstate"}, nil
+			return map[string]string{"bucket": "test", "dynamodb_table": "locks", "key": defaultStateKey}, nil
 		},
 		Root:     tempDir,
 		Stack:    tempDir,
@@ -2724,7 +2803,7 @@ func TestRunFallbackCleanupManualResourceRequiresManualWork(t *testing.T) {
 	newCloudControlClient = func(cfg sdkaws.Config) cloudControlAPI { return cc }
 	defer func() { newCloudControlClient = originalCC }()
 
-	err := RunFallbackCleanup(context.Background(), errors.New("terraform failed"), opts)
+	err := RunFallbackCleanup(context.Background(), errors.New(errorTerraformFailed), opts)
 	if err != nil {
 		// May fail at reset stage, but at least we tested the flow
 		t.Logf("error at reset stage: %v", err)
@@ -2780,11 +2859,11 @@ func TestForceDeleteS3BucketWithMockedClient(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("m1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("m1")},
 				},
 				IsTruncated: sdkaws.Bool(false),
 			},
@@ -2792,9 +2871,9 @@ func TestForceDeleteS3BucketWithMockedClient(t *testing.T) {
 	}
 
 	// Test the deletion path by directly calling deleteMatchingBucketVersions
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), fakeS3Client, "test-bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), fakeS3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deletedVersions != 2 {
 		t.Fatalf("expected 2 version deletions, got %d", deletedVersions)
@@ -2826,11 +2905,11 @@ func TestDeleteInlineRolePoliciesErrorOnDelete(t *testing.T) {
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{PolicyNames: []string{"inline1", "inline2"}, IsTruncated: false},
 		},
-		deleteRolePolicyErrs: []error{nil, errors.New("access denied")},
+		deleteRolePolicyErrs: []error{nil, errors.New(errorAccessDenied)},
 	}
 
 	// Verify error is properly set
-	if fakeIAM.deleteRolePolicyErrs[1].Error() != "access denied" {
+	if fakeIAM.deleteRolePolicyErrs[1].Error() != errorAccessDenied {
 		t.Fatal("error not set correctly")
 	}
 }
@@ -2862,15 +2941,15 @@ func TestCloudControlTypedMappingCombinations(t *testing.T) {
 		resourceType string
 		expectCFN    string
 	}{
-		{"dynamodb table", "dynamodb", "dynamodb/table", "AWS::DynamoDB::Table"},
-		{"lambda function", "lambda", "lambda/function", "AWS::Lambda::Function"},
-		{"logs group", "logs", "logs/log-group", "AWS::Logs::LogGroup"},
-		{"apigatewayv2", "apigatewayv2", "apigatewayv2/api", "AWS::ApiGatewayV2::Api"},
-		{"cloudtrail", "cloudtrail", "cloudtrail/trail", "AWS::CloudTrail::Trail"},
-		{"acm cert", "acm", "acm/certificate", "AWS::CertificateManager::Certificate"},
-		{"cloudfront", "cloudfront", "cloudfront/distribution", "AWS::CloudFront::Distribution"},
-		{"route53", "route53", "route53/hostedzone", "AWS::Route53::HostedZone"},
-		{"kms key", "kms", "kms/key", "AWS::KMS::Key"},
+		{"dynamodb table", "dynamodb", resourceTypeDynamoDBTable, cfnTypeDynamoDBTable},
+		{"lambda function", "lambda", resourceTypeLambdaFunction, cfnTypeLambdaFunction},
+		{"logs group", "logs", resourceTypeLogsLogGroup, cfnTypeLogsLogGroup},
+		{"apigatewayv2", "apigatewayv2", resourceTypeAPIGatewayV2API, cfnTypeAPIGatewayV2API},
+		{"cloudtrail", "cloudtrail", resourceTypeCloudTrailTrail, cfnTypeCloudTrailTrail},
+		{"acm cert", "acm", resourceTypeACMCertificate, cfnTypeACMCertificate},
+		{"cloudfront", "cloudfront", resourceTypeCloudFrontDistribution, cfnTypeCloudFrontDistribution},
+		{"route53", "route53", resourceTypeRoute53HostedZone, cfnTypeRoute53HostedZone},
+		{"kms key", "kms", resourceTypeKMSKey, cfnTypeKMSKey},
 	}
 
 	for _, tt := range tests {
@@ -2887,7 +2966,7 @@ func TestCloudControlTypedMappingCombinations(t *testing.T) {
 }
 
 func TestCloudControlTypedMappingUnknown(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("unknown", "unknown/type")
+	mapping, ok := cloudControlTypedMapping("unknown", testResourceTypeUnknown)
 	if ok {
 		t.Fatalf("expected no mapping, got %#v", mapping)
 	}
@@ -2912,9 +2991,9 @@ func TestWaitForDeleteProgressBetweenStates(t *testing.T) {
 		},
 	}
 
-	err := waitForDelete(context.Background(), cc, "token-123")
+	err := waitForDelete(context.Background(), cc, testTokenID)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if callCount < 2 {
 		t.Fatalf("expected at least 2 waits, got %d", callCount)
@@ -2952,7 +3031,7 @@ func TestResetBackendStateForNukeFullFlow(t *testing.T) {
 	summary := &backendResetSummary{}
 	err := backupBackendState(context.Background(), s3Client, dynamoClient, cfg, backupDir, summary)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 
 	// Verify backup directory was created
@@ -2974,17 +3053,17 @@ func TestLoadBackendStateConfigWithWhitespace(t *testing.T) {
 
 	cfg, err := loadBackendStateConfigForNuke(root, root, "prod", parse)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 
 	// Verify whitespace is trimmed
-	if cfg.BucketName != "test-bucket" {
+	if cfg.BucketName != testBucketName {
 		t.Fatalf("bucket not trimmed: %q", cfg.BucketName)
 	}
-	if cfg.TableName != "test-table" {
+	if cfg.TableName != testTableName {
 		t.Fatalf("table not trimmed: %q", cfg.TableName)
 	}
-	if cfg.StateKey != "state.tfstate" {
+	if cfg.StateKey != defaultStateKey {
 		t.Fatalf("key not trimmed: %q", cfg.StateKey)
 	}
 }
@@ -2997,13 +3076,13 @@ func TestMatchesObjectKeyEmptyExpected(t *testing.T) {
 }
 
 func TestMatchesObjectKeyExactMatch(t *testing.T) {
-	if !matchesObjectKey(sdkaws.String("state.tfstate"), "state.tfstate") {
+	if !matchesObjectKey(sdkaws.String(defaultStateKey), defaultStateKey) {
 		t.Fatal("should match exact key")
 	}
 }
 
 func TestMatchesObjectKeyNoMatch(t *testing.T) {
-	if matchesObjectKey(sdkaws.String("other.tfstate"), "state.tfstate") {
+	if matchesObjectKey(sdkaws.String(otherStateKey), defaultStateKey) {
 		t.Fatal("should not match different key")
 	}
 }
@@ -3024,14 +3103,14 @@ func TestRunFallbackCleanupCompleteFlow(t *testing.T) {
 			if scanCount == 1 {
 				// First scan returns owned resource
 				return []sharedaudit.Resource{
-					{ResourceType: "lambda/function", Name: "func1", Status: "OWNED", ARN: "arn:lambda", Stack: "test"},
+					{ResourceType: resourceTypeLambdaFunction, Name: "func1", Status: "OWNED", ARN: "arn:lambda", Stack: "test"},
 				}, nil
 			}
 			// Second scan returns no owned resources (cleanup succeeded)
 			return []sharedaudit.Resource{}, nil
 		},
 		ParseAssignments: func(path string) (map[string]string, error) {
-			return map[string]string{"bucket": "state-bucket", "dynamodb_table": "tf-locks", "key": "state.tfstate"}, nil
+			return map[string]string{"bucket": "state-bucket", "dynamodb_table": "tf-locks", "key": defaultStateKey}, nil
 		},
 		Root:     tmpDir,
 		Stack:    tmpDir,
@@ -3068,9 +3147,9 @@ func TestRunManagedSDKFallbackNukeComplexScenario(t *testing.T) {
 	reporter := &fakeReporter{}
 
 	resources := []sharedaudit.Resource{
-		{ResourceType: "lambda/function", Name: "func1", Status: "OWNED", ARN: "arn:lambda", Stack: "test"},
-		{ResourceType: "dynamodb/table", Name: "table1", Status: "OWNED", ARN: "arn:dynamodb", Stack: "test"},
-		{ResourceType: "logs/log-group", Name: "logs1", Status: "OWNED", ARN: "arn:logs", Stack: "test"},
+		{ResourceType: resourceTypeLambdaFunction, Name: "func1", Status: "OWNED", ARN: "arn:lambda", Stack: "test"},
+		{ResourceType: resourceTypeDynamoDBTable, Name: "table1", Status: "OWNED", ARN: "arn:dynamodb", Stack: "test"},
+		{ResourceType: resourceTypeLogsLogGroup, Name: "logs1", Status: "OWNED", ARN: "arn:logs", Stack: "test"},
 	}
 
 	originalCC := newCloudControlClient
@@ -3091,7 +3170,7 @@ func TestRunManagedSDKFallbackNukeComplexScenario(t *testing.T) {
 
 	summary, err := runManagedSDKFallbackNuke(context.Background(), sdkaws.Config{}, reporter, resources)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if summary.Deleted != 3 {
 		t.Fatalf("expected 3 deleted, got %d", summary.Deleted)
@@ -3105,17 +3184,17 @@ func TestRunManagedSDKFallbackNukeResourceFailsAndBlocked(t *testing.T) {
 	reporter := &fakeReporter{}
 
 	resources := []sharedaudit.Resource{
-		{ResourceType: "dynamodb/table", Name: "table1", Status: "OWNED", ARN: "arn", Stack: "test"},
-		{ResourceType: "lambda/function", Name: "func1", Status: "OWNED", ARN: "arn", Stack: "test"},
-		{ResourceType: "logs/log-group", Name: "logs1", Status: "OWNED", ARN: "arn", Stack: "test"},
+		{ResourceType: resourceTypeDynamoDBTable, Name: "table1", Status: "OWNED", ARN: "arn", Stack: "test"},
+		{ResourceType: resourceTypeLambdaFunction, Name: "func1", Status: "OWNED", ARN: "arn", Stack: "test"},
+		{ResourceType: resourceTypeLogsLogGroup, Name: "logs1", Status: "OWNED", ARN: "arn", Stack: "test"},
 	}
 
 	originalCC := newCloudControlClient
 	cc := &fakeCloudControlClient{
 		deleteErrs: []error{
-			errors.New("access denied"),         // Blocked
-			errors.New("dependency violation"),  // Blocked
-			errors.New("unsupported operation"), // Manual
+			errors.New(errorAccessDenied),        // Blocked
+			errors.New(errorDependencyViolation), // Blocked
+			errors.New("unsupported operation"),  // Manual
 		},
 	}
 	newCloudControlClient = func(cfg sdkaws.Config) cloudControlAPI { return cc }
@@ -3123,7 +3202,7 @@ func TestRunManagedSDKFallbackNukeResourceFailsAndBlocked(t *testing.T) {
 
 	summary, err := runManagedSDKFallbackNuke(context.Background(), sdkaws.Config{}, reporter, resources)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 	if summary.Failed != 1 {
 		t.Fatalf("expected 1 failed, got %d", summary.Failed)
@@ -3164,10 +3243,10 @@ func TestDeleteResourceWithRetryExponentialBackoff(t *testing.T) {
 
 	resp, err := deleteResourceWithRetry(context.Background(), cc, &cloudcontrol.DeleteResourceInput{})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if resp == nil {
-		t.Fatal("expected response")
+		t.Fatal(msgExpectedResponse)
 	}
 
 	// Verify exponential backoff: 1s, 2s, 4s
@@ -3232,9 +3311,9 @@ func TestCloudControlServiceMappingIdentifiers(t *testing.T) {
 			"S3 uses name",
 			"s3",
 			cloudControlNameIdentifier,
-			"my-bucket",
+			testMyBucket,
 			"arn:aws:s3:::my-bucket",
-			"my-bucket",
+			testMyBucket,
 		},
 	}
 
@@ -3255,12 +3334,12 @@ func TestArnToCloudControlTypedServices(t *testing.T) {
 		resourceType string
 		expectedCFN  string
 	}{
-		{"DynamoDB", "dynamodb", "dynamodb/table", "AWS::DynamoDB::Table"},
-		{"Lambda", "lambda", "lambda/function", "AWS::Lambda::Function"},
-		{"Logs", "logs", "logs/log-group", "AWS::Logs::LogGroup"},
-		{"API Gateway", "apigatewayv2", "apigatewayv2/api", "AWS::ApiGatewayV2::Api"},
-		{"CloudTrail", "cloudtrail", "cloudtrail/trail", "AWS::CloudTrail::Trail"},
-		{"KMS", "kms", "kms/key", "AWS::KMS::Key"},
+		{"DynamoDB", "dynamodb", resourceTypeDynamoDBTable, cfnTypeDynamoDBTable},
+		{"Lambda", "lambda", resourceTypeLambdaFunction, cfnTypeLambdaFunction},
+		{"Logs", "logs", resourceTypeLogsLogGroup, cfnTypeLogsLogGroup},
+		{"API Gateway", "apigatewayv2", resourceTypeAPIGatewayV2API, cfnTypeAPIGatewayV2API},
+		{"CloudTrail", "cloudtrail", resourceTypeCloudTrailTrail, cfnTypeCloudTrailTrail},
+		{"KMS", "kms", resourceTypeKMSKey, cfnTypeKMSKey},
 	}
 
 	for _, tt := range tests {
@@ -3278,7 +3357,7 @@ func TestArnToCloudControlTypedServices(t *testing.T) {
 
 func TestDeleteBucketObjectVersionNotFoundError(t *testing.T) {
 	s3Client := &fakeStateS3Client{
-		deleteErr: errors.New("not found"),
+		deleteErr: errors.New(errorNotFound),
 	}
 
 	err := deleteBucketObjectVersion(context.Background(), s3Client, "bucket", sdkaws.String("key"), sdkaws.String("v1"))
@@ -3290,7 +3369,7 @@ func TestDeleteBucketObjectVersionNotFoundError(t *testing.T) {
 
 func TestBackupLockEntriesCreatesDirStructure(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "nested", "dir", "locks.json")
+	targetFile := filepath.Join(tmpDir, "nested", "dir", locksJSONFile)
 
 	dynamoClient := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
@@ -3303,10 +3382,10 @@ func TestBackupLockEntriesCreatesDirStructure(t *testing.T) {
 
 	items, err := backupLockEntries(context.Background(), dynamoClient, "table", "key", targetFile)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(items) != 0 {
-		t.Fatalf("expected 0 items, got %d", len(items))
+		t.Fatalf(errExpectedZeroItemsFmt, len(items))
 	}
 
 	// Verify file was created
@@ -3328,10 +3407,10 @@ func TestScanLockEntriesEmptyResult(t *testing.T) {
 
 	items, err := scanLockEntries(context.Background(), dynamoClient, "table", "key")
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(items) != 0 {
-		t.Fatalf("expected 0 items, got %d", len(items))
+		t.Fatalf(errExpectedZeroItemsFmt, len(items))
 	}
 }
 
@@ -3347,7 +3426,7 @@ func TestDeleteLockEntriesWithNotFoundError(t *testing.T) {
 				},
 			},
 		},
-		deleteItemErrs: []error{errors.New("not found")},
+		deleteItemErrs: []error{errors.New(errorNotFound)},
 	}
 
 	// Not found errors should be ignored
@@ -3371,7 +3450,7 @@ func TestWalkObjectVersionPagesEmptyPages(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if pageCount != 1 {
 		t.Fatalf("expected 1 page, got %d", pageCount)
@@ -3390,7 +3469,7 @@ func TestWalkObjectVersionPagesWithPrefix(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
@@ -3407,7 +3486,7 @@ func TestOwnedResourcesForFallbackFiltersStatus(t *testing.T) {
 		{Status: "OWNED", ResourceType: "s3", Name: "bucket1"},
 		{Status: "OTHER_MANAGED", ResourceType: "s3", Name: "bucket2"},
 		{Status: "UNMANAGED", ResourceType: "s3", Name: "bucket3"},
-		{Status: "OWNED", ResourceType: "lambda/function", Name: "func1"},
+		{Status: "OWNED", ResourceType: resourceTypeLambdaFunction, Name: "func1"},
 	}
 
 	owned := ownedResourcesForFallback(resources)
@@ -3429,22 +3508,22 @@ func TestOwnedResourcesForFallbackFiltersStatus(t *testing.T) {
 // Tests for IAM deletion error paths
 func TestDeleteInlineRolePoliciesListErrorPath(t *testing.T) {
 	iamClient := &fakeIAMClient{
-		listRolePoliciesErrs: []error{errors.New("access denied")},
+		listRolePoliciesErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	// Test through the fact that error setup is valid
 	if len(iamClient.listRolePoliciesErrs) == 0 {
-		t.Fatal("error setup should exist")
+		t.Fatal(msgErrorSetupShouldExist)
 	}
 }
 
 func TestDetachAttachedRolePoliciesListErrorPath(t *testing.T) {
 	iamClient := &fakeIAMClient{
-		listAttachedErrs: []error{errors.New("access denied")},
+		listAttachedErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	if len(iamClient.listAttachedErrs) == 0 {
-		t.Fatal("error setup should exist")
+		t.Fatal(msgErrorSetupShouldExist)
 	}
 }
 
@@ -3456,7 +3535,7 @@ func TestDeleteInlineRolePolicyNotFoundIgnored(t *testing.T) {
 	}
 
 	if len(iamClient.deleteRolePolicyErrs) == 0 {
-		t.Fatal("error setup should exist")
+		t.Fatal(msgErrorSetupShouldExist)
 	}
 }
 
@@ -3467,7 +3546,7 @@ func TestDetachAttachedRolePolicyNotFoundIgnored(t *testing.T) {
 	}
 
 	if len(iamClient.detachRolePolicyErrs) == 0 {
-		t.Fatal("error setup should exist")
+		t.Fatal(msgErrorSetupShouldExist)
 	}
 }
 
@@ -3477,11 +3556,11 @@ func TestForceDeleteIAMRoleListAttachedErrorPath(t *testing.T) {
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{PolicyNames: []string{}},
 		},
-		listAttachedErrs: []error{errors.New("access denied")},
+		listAttachedErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	if len(iamClient.listAttachedErrs) == 0 {
-		t.Fatal("error setup should exist")
+		t.Fatal(msgErrorSetupShouldExist)
 	}
 }
 
@@ -3490,18 +3569,18 @@ func TestForceDeleteS3BucketVersionDeletionErrorPath(t *testing.T) {
 	s3Client := &fakeStateS3Client{
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
-				Versions: []s3types.ObjectVersion{{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")}},
+				Versions: []s3types.ObjectVersion{{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")}},
 			},
 		},
-		deleteErr: errors.New("access denied"),
+		deleteErr: errors.New(errorAccessDenied),
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "bucket", defaultStateKey)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 0 || deletedMarkers != 0 {
 		t.Fatalf("expected 0 deleted, got %d versions, %d markers", deletedVersions, deletedMarkers)
@@ -3511,7 +3590,7 @@ func TestForceDeleteS3BucketVersionDeletionErrorPath(t *testing.T) {
 // Tests for walkObjectVersionPages with error path
 func TestWalkObjectVersionPagesListErrorPath(t *testing.T) {
 	s3Client := &fakeStateS3Client{
-		listErrs: []error{errors.New("access denied")},
+		listErrs: []error{errors.New(errorAccessDenied)},
 	}
 
 	pageCount := 0
@@ -3521,10 +3600,10 @@ func TestWalkObjectVersionPagesListErrorPath(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if pageCount != 0 {
 		t.Fatalf("expected 0 pages visited, got %d", pageCount)
@@ -3562,7 +3641,7 @@ func TestLoadBackendStateConfigWhitespaceTrimming(t *testing.T) {
 		}, nil
 	})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
@@ -3581,7 +3660,7 @@ func TestDeleteLockEntriesMultipleItems(t *testing.T) {
 
 	err := deleteLockEntries(context.Background(), dynamoClient, "table", "key")
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 }
 
@@ -3597,12 +3676,12 @@ func TestScanLockEntriesNonMatchingKey(t *testing.T) {
 		}},
 	}
 
-	items, err := scanLockEntries(context.Background(), dynamoClient, "table", "target-key")
+	items, err := scanLockEntries(context.Background(), dynamoClient, "table", testTargetKey)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(items) != 0 {
-		t.Fatalf("expected 0 items, got %d", len(items))
+		t.Fatalf(errExpectedZeroItemsFmt, len(items))
 	}
 }
 
@@ -3626,10 +3705,10 @@ func TestDeleteResourceWithRetryBackoffProgression(t *testing.T) {
 
 	resp, err := deleteResourceWithRetry(context.Background(), cc, &cloudcontrol.DeleteResourceInput{})
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if resp == nil {
-		t.Fatal("expected response")
+		t.Fatal(msgExpectedResponse)
 	}
 	if len(backoffTimings) != 2 {
 		t.Logf("expected 2 backoff calls, got %d", len(backoffTimings))
@@ -3685,7 +3764,7 @@ func TestWaitForDeleteThrottlingRetry(t *testing.T) {
 
 	err := waitForDelete(context.Background(), cc, "token")
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if callCount != 1 {
 		t.Logf("expected 1 retry, got %d", callCount)
@@ -3717,10 +3796,10 @@ func TestMarshalLockEntriesEmpty(t *testing.T) {
 	items := []map[string]dbtypes.AttributeValue{}
 	result, err := marshalLockEntries(items)
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if len(result) != 0 {
-		t.Fatalf("expected 0 items, got %d", len(result))
+		t.Fatalf(errExpectedZeroItemsFmt, len(result))
 	}
 }
 
@@ -3736,15 +3815,15 @@ func TestLockEntryMatchesWithMismatchType(t *testing.T) {
 
 // Tests for purgeClientToken with empty stack tag
 func TestPurgeClientTokenEmptyStackTag(t *testing.T) {
-	token := purgeClientToken("AWS::Lambda::Function", "my-func", "")
-	if !strings.Contains(token, "stack-purge-") {
+	token := purgeClientToken(cfnTypeLambdaFunction, testFuncName, "")
+	if !strings.Contains(token, stackPurgePrefix) {
 		t.Fatalf("unexpected token format: %s", token)
 	}
 }
 
 // Tests for arnToCloudControl with unknown service
 func TestArnToCloudControlUnknownService(t *testing.T) {
-	cfnType, identifier := arnToCloudControl("arn", "unknown", "unknown/type", "name")
+	cfnType, identifier := arnToCloudControl("arn", "unknown", testResourceTypeUnknown, "name")
 	if cfnType != "" || identifier != "" {
 		t.Fatalf("expected empty for unknown service, got %q, %q", cfnType, identifier)
 	}
@@ -3776,12 +3855,12 @@ func TestRunManagedSDKFallbackNukeManualError(t *testing.T) {
 
 	reporter := &fakeReporter{}
 	resources := []sharedaudit.Resource{
-		{ResourceType: "unknown/type", Name: "resource", Status: "OWNED", ARN: "arn:aws:unknown:us-east-1:123456789012:resource", Stack: "stack1"},
+		{ResourceType: testResourceTypeUnknown, Name: "resource", Status: "OWNED", ARN: "arn:aws:unknown:us-east-1:123456789012:resource", Stack: "stack1"},
 	}
 
 	summary, err := runManagedSDKFallbackNuke(context.Background(), sdkaws.Config{}, reporter, resources)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 	if summary.Manual != 1 {
 		t.Fatalf("expected 1 manual error, got %d", summary.Manual)
@@ -3792,19 +3871,19 @@ func TestRunManagedSDKFallbackNukeManualError(t *testing.T) {
 func TestRunManagedSDKFallbackNukeBlockedError(t *testing.T) {
 	originalCC := newCloudControlClient
 	cc := &fakeCloudControlClient{
-		deleteErrs: []error{errors.New("dependency violation")},
+		deleteErrs: []error{errors.New(errorDependencyViolation)},
 	}
 	newCloudControlClient = func(cfg sdkaws.Config) cloudControlAPI { return cc }
 	defer func() { newCloudControlClient = originalCC }()
 
 	reporter := &fakeReporter{}
 	resources := []sharedaudit.Resource{
-		{ResourceType: "lambda/function", Name: "func", Status: "OWNED", ARN: "arn:aws:lambda:us-east-1:123456789012:function:func", Stack: "stack1"},
+		{ResourceType: resourceTypeLambdaFunction, Name: "func", Status: "OWNED", ARN: testLambdaARNFunc, Stack: "stack1"},
 	}
 
 	summary, err := runManagedSDKFallbackNuke(context.Background(), sdkaws.Config{}, reporter, resources)
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatal(msgExpectedError)
 	}
 	if summary.Blocked != 1 {
 		t.Fatalf("expected 1 blocked error, got %d", summary.Blocked)
@@ -3830,7 +3909,7 @@ func TestWaitForDeleteProgressBetweenChecks(t *testing.T) {
 
 	err := waitForDelete(context.Background(), cc, "token")
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if callCount != 1 {
 		t.Fatalf("expected 1 sleep call, got %d", callCount)
@@ -3839,7 +3918,7 @@ func TestWaitForDeleteProgressBetweenChecks(t *testing.T) {
 
 // Test classifyPurgeDeleteError with fatal error
 func TestClassifyPurgeDeleteErrorFatal(t *testing.T) {
-	classification := classifyPurgeDeleteError(errors.New("unknown error"))
+	classification := classifyPurgeDeleteError(errors.New(errorUnknown))
 	if classification != purgeFailureFatal {
 		t.Fatalf("expected fatal, got %d", classification)
 	}
@@ -3857,12 +3936,12 @@ func TestClassifyPurgeDeleteErrorNil(t *testing.T) {
 func TestDeleteBucketVersionsPageKeyMismatch(t *testing.T) {
 	s3Client := &fakeStateS3Client{}
 
-	deleted, err := deleteBucketVersionsPage(context.Background(), s3Client, "bucket", "target-key", []s3types.ObjectVersion{
-		{Key: sdkaws.String("other-key"), VersionId: sdkaws.String("v1")},
+	deleted, err := deleteBucketVersionsPage(context.Background(), s3Client, "bucket", testTargetKey, []s3types.ObjectVersion{
+		{Key: sdkaws.String(testOtherKey), VersionId: sdkaws.String("v1")},
 	}, 0)
 
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deleted != 0 {
 		t.Fatalf("expected 0 deleted, got %d", deleted)
@@ -3873,12 +3952,12 @@ func TestDeleteBucketVersionsPageKeyMismatch(t *testing.T) {
 func TestDeleteBucketDeleteMarkersPageKeyMismatch(t *testing.T) {
 	s3Client := &fakeStateS3Client{}
 
-	deleted, err := deleteBucketDeleteMarkersPage(context.Background(), s3Client, "bucket", "target-key", []s3types.DeleteMarkerEntry{
-		{Key: sdkaws.String("other-key"), VersionId: sdkaws.String("m1")},
+	deleted, err := deleteBucketDeleteMarkersPage(context.Background(), s3Client, "bucket", testTargetKey, []s3types.DeleteMarkerEntry{
+		{Key: sdkaws.String(testOtherKey), VersionId: sdkaws.String("m1")},
 	}, 0)
 
 	if err != nil {
-		t.Fatalf("error: %v", err)
+		t.Fatalf(errFmtV, err)
 	}
 	if deleted != 0 {
 		t.Fatalf("expected 0 deleted, got %d", deleted)
@@ -3895,8 +3974,8 @@ func TestParseServiceTypeSinglePart(t *testing.T) {
 
 // Test parseServiceType multi-part
 func TestParseServiceTypeMultiPart(t *testing.T) {
-	service, fullType := parseServiceType("service/type/extra")
-	if service != "service" || fullType != "service/type/extra" {
+	service, fullType := parseServiceType(testResourceTypeExtra)
+	if service != "service" || fullType != testResourceTypeExtra {
 		t.Fatalf("got %q, %q", service, fullType)
 	}
 }
@@ -3915,9 +3994,9 @@ func TestDeleteMatchingBucketVersionsEmptyBucket(t *testing.T) {
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 0 || deletedMarkers != 0 {
 		t.Fatalf("expected 0 deletions for empty bucket, got %d versions and %d markers", deletedVersions, deletedMarkers)
@@ -3930,7 +4009,7 @@ func TestDeleteMatchingBucketVersionsSingleVersion(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("vid-001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("vid-001")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 				IsTruncated:   sdkaws.Bool(false),
@@ -3938,9 +4017,9 @@ func TestDeleteMatchingBucketVersionsSingleVersion(t *testing.T) {
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 1 || deletedMarkers != 0 {
 		t.Fatalf("expected 1 version and 0 markers, got %d and %d", deletedVersions, deletedMarkers)
@@ -3953,9 +4032,9 @@ func TestDeleteMatchingBucketVersionsMultipleVersions(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v001")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v002")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v003")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v002")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v003")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 				IsTruncated:   sdkaws.Bool(false),
@@ -3963,9 +4042,9 @@ func TestDeleteMatchingBucketVersionsMultipleVersions(t *testing.T) {
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 3 || deletedMarkers != 0 {
 		t.Fatalf("expected 3 versions, got %d", deletedVersions)
@@ -3979,17 +4058,17 @@ func TestDeleteMatchingBucketVersionsDeleteMarkers(t *testing.T) {
 			{
 				Versions: []s3types.ObjectVersion{},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm-001")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm-002")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm-001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm-002")},
 				},
 				IsTruncated: sdkaws.Bool(false),
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 0 || deletedMarkers != 2 {
 		t.Fatalf("expected 0 versions and 2 markers, got %d and %d", deletedVersions, deletedMarkers)
@@ -4002,20 +4081,20 @@ func TestDeleteMatchingBucketVersionsMixed(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v001")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v002")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v002")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm-001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm-001")},
 				},
 				IsTruncated: sdkaws.Bool(false),
 			},
 		},
 	}
 
-	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, deletedMarkers, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 2 || deletedMarkers != 1 {
 		t.Fatalf("expected 2 versions and 1 marker, got %d and %d", deletedVersions, deletedMarkers)
@@ -4028,15 +4107,15 @@ func TestDeleteMatchingBucketVersionsPaginationComprehensive(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v001")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 				IsTruncated:   sdkaws.Bool(true),
-				NextKeyMarker: sdkaws.String("state.tfstate"),
+				NextKeyMarker: sdkaws.String(defaultStateKey),
 			},
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v002")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v002")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 				IsTruncated:   sdkaws.Bool(false),
@@ -4044,9 +4123,9 @@ func TestDeleteMatchingBucketVersionsPaginationComprehensive(t *testing.T) {
 		},
 	}
 
-	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 2 {
 		t.Fatalf("expected 2 versions across pages, got %d", deletedVersions)
@@ -4059,9 +4138,9 @@ func TestDeleteMatchingBucketVersionsKeyFiltering(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v001")},
-					{Key: sdkaws.String("other.tfstate"), VersionId: sdkaws.String("v002")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v003")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v001")},
+					{Key: sdkaws.String(otherStateKey), VersionId: sdkaws.String("v002")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v003")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 				IsTruncated:   sdkaws.Bool(false),
@@ -4069,9 +4148,9 @@ func TestDeleteMatchingBucketVersionsKeyFiltering(t *testing.T) {
 		},
 	}
 
-	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	deletedVersions, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if deletedVersions != 2 {
 		t.Fatalf("expected 2 matching versions (others ignored), got %d", deletedVersions)
@@ -4080,14 +4159,14 @@ func TestDeleteMatchingBucketVersionsKeyFiltering(t *testing.T) {
 
 // Test deleteMatchingBucketVersions error on list
 func TestDeleteMatchingBucketVersionsListErrorComprehensive(t *testing.T) {
-	listErr := errors.New("access denied")
+	listErr := errors.New(errorAccessDenied)
 	s3Client := &fakeStateS3Client{
 		listErrs: []error{listErr},
 	}
 
-	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if !errors.Is(err, listErr) {
-		t.Fatalf("expected error %v, got %v", listErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, listErr, err)
 	}
 }
 
@@ -4098,7 +4177,7 @@ func TestDeleteMatchingBucketVersionsDeleteErrorComprehensive(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v001")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v001")},
 				},
 				IsTruncated: sdkaws.Bool(false),
 			},
@@ -4106,16 +4185,16 @@ func TestDeleteMatchingBucketVersionsDeleteErrorComprehensive(t *testing.T) {
 		deleteErr: deleteErr,
 	}
 
-	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, "test-bucket", "state.tfstate")
+	_, _, err := deleteMatchingBucketVersions(context.Background(), s3Client, testBucketName, defaultStateKey)
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
 // Test deleteBucketObjectVersion ignores NotFound
 func TestDeleteBucketObjectVersionIgnoresNotFound(t *testing.T) {
 	s3Client := &fakeStateS3Client{
-		deleteErr: errors.New("not found"),
+		deleteErr: errors.New(errorNotFound),
 	}
 
 	err := deleteBucketObjectVersion(context.Background(), s3Client, "bucket", sdkaws.String("key"), sdkaws.String("vid"))
@@ -4133,7 +4212,7 @@ func TestDeleteBucketObjectVersionError(t *testing.T) {
 
 	err := deleteBucketObjectVersion(context.Background(), s3Client, "bucket", sdkaws.String("key"), sdkaws.String("vid"))
 	if !errors.Is(err, otherErr) {
-		t.Fatalf("expected error %v, got %v", otherErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, otherErr, err)
 	}
 }
 
@@ -4148,17 +4227,17 @@ func TestDeleteLockEntriesWithItems(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{nil, nil},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -4170,16 +4249,16 @@ func TestDeleteLockEntriesSkipsMissing(t *testing.T) {
 			{
 				Items: []map[string]dbtypes.AttributeValue{
 					{"InvalidKey": &dbtypes.AttributeValueMemberS{Value: "value"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{nil},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -4191,16 +4270,16 @@ func TestDeleteLockEntriesWrongType(t *testing.T) {
 			{
 				Items: []map[string]dbtypes.AttributeValue{
 					{"LockID": &dbtypes.AttributeValueMemberN{Value: "12345"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{nil},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -4211,14 +4290,14 @@ func TestDeleteLockEntriesIgnoresNotFound(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{errors.New("ResourceNotFound")},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
 		t.Fatalf("expected nil for NotFound, got %v", err)
 	}
@@ -4226,22 +4305,22 @@ func TestDeleteLockEntriesIgnoresNotFound(t *testing.T) {
 
 // Test deleteLockEntries propagates errors
 func TestDeleteLockEntriesError(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	dynamoClient := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{{Table: &dbtypes.TableDescription{}}},
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{deleteErr},
 	}
 
-	err := deleteLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	err := deleteLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
@@ -4251,9 +4330,9 @@ func TestScanLockEntriesTableNotFound(t *testing.T) {
 		describeErrs: []error{&dbtypes.ResourceNotFoundException{}},
 	}
 
-	items, err := scanLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if len(items) != 0 {
 		t.Fatalf("expected 0 items for missing table, got %d", len(items))
@@ -4262,28 +4341,28 @@ func TestScanLockEntriesTableNotFound(t *testing.T) {
 
 // Test scanLockEntries describe error
 func TestScanLockEntriesDescribeError(t *testing.T) {
-	describeErr := errors.New("access denied")
+	describeErr := errors.New(errorAccessDenied)
 	dynamoClient := &fakeDynamoDBClient{
 		describeErrs: []error{describeErr},
 	}
 
-	_, err := scanLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	_, err := scanLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if !errors.Is(err, describeErr) {
-		t.Fatalf("expected error %v, got %v", describeErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, describeErr, err)
 	}
 }
 
 // Test scanLockEntries scan error
 func TestScanLockEntriesScanErrorComprehensive(t *testing.T) {
-	scanErr := errors.New("scan failed")
+	scanErr := errors.New(errorScanFailed)
 	dynamoClient := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{{Table: &dbtypes.TableDescription{}}},
 		scanErrs:        []error{scanErr},
 	}
 
-	_, err := scanLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	_, err := scanLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if !errors.Is(err, scanErr) {
-		t.Fatalf("expected error %v, got %v", scanErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, scanErr, err)
 	}
 }
 
@@ -4294,7 +4373,7 @@ func TestScanLockEntriesPaginationComprehensive(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 				LastEvaluatedKey: map[string]dbtypes.AttributeValue{
 					"LockID": &dbtypes.AttributeValueMemberS{Value: "marker"},
@@ -4302,16 +4381,16 @@ func TestScanLockEntriesPaginationComprehensive(t *testing.T) {
 			},
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 				LastEvaluatedKey: map[string]dbtypes.AttributeValue{},
 			},
 		},
 	}
 
-	items, err := scanLockEntries(context.Background(), dynamoClient, "locks", "state.tfstate")
+	items, err := scanLockEntries(context.Background(), dynamoClient, "locks", defaultStateKey)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items across pages, got %d", len(items))
@@ -4326,8 +4405,8 @@ func TestLockEntryMatches(t *testing.T) {
 		key      string
 		expected bool
 	}{
-		{"match", "state.tfstate", "state.tfstate", true},
-		{"no match", "other.tfstate", "state.tfstate", false},
+		{"match", defaultStateKey, defaultStateKey, true},
+		{"no match", otherStateKey, defaultStateKey, false},
 	}
 
 	for _, tt := range tests {
@@ -4354,7 +4433,7 @@ func TestMarshalLockEntries(t *testing.T) {
 
 	serializable, err := marshalLockEntries(items)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if len(serializable) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(serializable))
@@ -4386,20 +4465,20 @@ func TestEnsureLockTableExistsSuccessComprehensive(t *testing.T) {
 
 	err := ensureLockTableExists(context.Background(), dynamoClient, "locks")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 // Test ensureLockTableExists error
 func TestEnsureLockTableExistsError(t *testing.T) {
-	otherErr := errors.New("access denied")
+	otherErr := errors.New(errorAccessDenied)
 	dynamoClient := &fakeDynamoDBClient{
 		describeErrs: []error{otherErr},
 	}
 
 	err := ensureLockTableExists(context.Background(), dynamoClient, "locks")
 	if !errors.Is(err, otherErr) {
-		t.Fatalf("expected error %v, got %v", otherErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, otherErr, err)
 	}
 }
 
@@ -4511,17 +4590,17 @@ func TestForceDeleteIAMRoleNoPoliciesToDelete(t *testing.T) {
 		deleteRoleErrs: []error{nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should succeed when no policies exist, got error: %v", err)
 	}
 
-	err = detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err = detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should succeed when no policies exist, got error: %v", err)
 	}
 
-	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String("test-role")})
+	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String(testRoleName)})
 	if err != nil {
 		t.Fatalf("DeleteRole should succeed, got error: %v", err)
 	}
@@ -4534,7 +4613,7 @@ func TestForceDeleteIAMRoleNoPoliciesToDelete(t *testing.T) {
 func TestForceDeleteIAMRoleWithInlinePoliciesOnly(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"inline-policy-1", "inline-policy-2"}, IsTruncated: false},
+			{PolicyNames: []string{testInlinePolicy1, testInlinePolicy2}, IsTruncated: false},
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{}, IsTruncated: false},
@@ -4543,7 +4622,7 @@ func TestForceDeleteIAMRoleWithInlinePoliciesOnly(t *testing.T) {
 		deleteRoleErrs:       []error{nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should succeed with inline policies, got error: %v", err)
 	}
@@ -4560,7 +4639,7 @@ func TestForceDeleteIAMRoleWithAttachedPoliciesOnly(t *testing.T) {
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{
-				{PolicyArn: sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")},
+				{PolicyArn: sdkaws.String(testPolicyARN1)},
 				{PolicyArn: sdkaws.String("arn:aws:iam::123456789012:policy/policy-2")},
 			}, IsTruncated: false},
 		},
@@ -4568,7 +4647,7 @@ func TestForceDeleteIAMRoleWithAttachedPoliciesOnly(t *testing.T) {
 		deleteRoleErrs:       []error{nil},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should succeed with attached policies, got error: %v", err)
 	}
@@ -4581,11 +4660,11 @@ func TestForceDeleteIAMRoleWithAttachedPoliciesOnly(t *testing.T) {
 func TestForceDeleteIAMRoleWithBothPolicyTypes(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"inline-policy-1"}, IsTruncated: false},
+			{PolicyNames: []string{testInlinePolicy1}, IsTruncated: false},
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{
-				{PolicyArn: sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")},
+				{PolicyArn: sdkaws.String(testPolicyARN1)},
 			}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{nil},
@@ -4593,36 +4672,36 @@ func TestForceDeleteIAMRoleWithBothPolicyTypes(t *testing.T) {
 		deleteRoleErrs:       []error{nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should succeed with inline policies, got error: %v", err)
 	}
 
-	err = detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err = detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should succeed with attached policies, got error: %v", err)
 	}
 	if len(client.deleteRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DeleteRolePolicy call, got %d", len(client.deleteRolePolicyInputs))
+		t.Fatalf(errExpectedOneDeleteRolePolicyFmt, len(client.deleteRolePolicyInputs))
 	}
 	if len(client.detachRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DetachRolePolicy call, got %d", len(client.detachRolePolicyInputs))
+		t.Fatalf(errExpectedOneDetachRolePolicyFmt, len(client.detachRolePolicyInputs))
 	}
 }
 
 // Test 5: Error during deleteInlineRolePolicies should propagate
 func TestForceDeleteIAMRoleErrorDuringInlinePoliciesDeletion(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"inline-policy-1"}, IsTruncated: false},
+			{PolicyNames: []string{testInlinePolicy1}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{deleteErr},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
@@ -4635,15 +4714,15 @@ func TestForceDeleteIAMRoleErrorDuringAttachedPoliciesDetach(t *testing.T) {
 		},
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{
-				{PolicyArn: sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")},
+				{PolicyArn: sdkaws.String(testPolicyARN1)},
 			}, IsTruncated: false},
 		},
 		detachRolePolicyErrs: []error{detachErr},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, detachErr) {
-		t.Fatalf("expected error %v, got %v", detachErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, detachErr, err)
 	}
 }
 
@@ -4659,17 +4738,17 @@ func TestForceDeleteIAMRoleDeleteRoleNotFoundSuppressed(t *testing.T) {
 		deleteRoleErrs: []error{errors.New("NoSuchEntity")},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("deleteInlineRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDeleteInlinePoliciesFmt, err)
 	}
 
-	err = detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err = detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("detachAttachedRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDetachAttachedPoliciesFmt, err)
 	}
 
-	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String("test-role")})
+	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String(testRoleName)})
 	if err == nil || !isNotFoundError(err) {
 		t.Fatalf("expected NotFound error, got %v", err)
 	}
@@ -4677,7 +4756,7 @@ func TestForceDeleteIAMRoleDeleteRoleNotFoundSuppressed(t *testing.T) {
 
 // Test 8: Error during DeleteRole should propagate other errors
 func TestForceDeleteIAMRoleDeleteRoleOtherErrorPropagated(t *testing.T) {
-	deleteErr := errors.New("service error")
+	deleteErr := errors.New(errorService)
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{PolicyNames: []string{}, IsTruncated: false},
@@ -4688,19 +4767,19 @@ func TestForceDeleteIAMRoleDeleteRoleOtherErrorPropagated(t *testing.T) {
 		deleteRoleErrs: []error{deleteErr},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("deleteInlineRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDeleteInlinePoliciesFmt, err)
 	}
 
-	err = detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err = detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("detachAttachedRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDetachAttachedPoliciesFmt, err)
 	}
 
-	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String("test-role")})
+	_, err = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: sdkaws.String(testRoleName)})
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
@@ -4716,7 +4795,7 @@ func TestDeleteInlineRolePoliciesZeroPolicies(t *testing.T) {
 		},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should succeed with zero policies, got error: %v", err)
 	}
@@ -4729,19 +4808,19 @@ func TestDeleteInlineRolePoliciesZeroPolicies(t *testing.T) {
 func TestDeleteInlineRolePoliciesOnePolicy(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"policy-1"}, IsTruncated: false},
+			{PolicyNames: []string{testPolicy1Name}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("deleteInlineRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDeleteInlinePoliciesFmt, err)
 	}
 	if len(client.deleteRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DeleteRolePolicy call, got %d", len(client.deleteRolePolicyInputs))
+		t.Fatalf(errExpectedOneDeleteRolePolicyFmt, len(client.deleteRolePolicyInputs))
 	}
-	if sdkaws.ToString(client.deleteRolePolicyInputs[0].PolicyName) != "policy-1" {
+	if sdkaws.ToString(client.deleteRolePolicyInputs[0].PolicyName) != testPolicy1Name {
 		t.Fatalf("expected policy name 'policy-1', got '%s'", sdkaws.ToString(client.deleteRolePolicyInputs[0].PolicyName))
 	}
 }
@@ -4750,14 +4829,14 @@ func TestDeleteInlineRolePoliciesOnePolicy(t *testing.T) {
 func TestDeleteInlineRolePoliciesMultiplePoliciesNoPagination(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"policy-1", "policy-2", "policy-3"}, IsTruncated: false},
+			{PolicyNames: []string{testPolicy1Name, testPolicy2Name, "policy-3"}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{nil, nil, nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("deleteInlineRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDeleteInlinePoliciesFmt, err)
 	}
 	if len(client.deleteRolePolicyInputs) != 3 {
 		t.Fatalf("expected 3 DeleteRolePolicy calls, got %d", len(client.deleteRolePolicyInputs))
@@ -4768,13 +4847,13 @@ func TestDeleteInlineRolePoliciesMultiplePoliciesNoPagination(t *testing.T) {
 func TestDeleteInlineRolePoliciesPaginationWithMarker(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"policy-1", "policy-2"}, IsTruncated: true, Marker: sdkaws.String("marker1")},
+			{PolicyNames: []string{testPolicy1Name, testPolicy2Name}, IsTruncated: true, Marker: sdkaws.String("marker1")},
 			{PolicyNames: []string{"policy-3"}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{nil, nil, nil},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should succeed with pagination, got error: %v", err)
 	}
@@ -4785,30 +4864,30 @@ func TestDeleteInlineRolePoliciesPaginationWithMarker(t *testing.T) {
 
 // Test 13: Error on ListRolePolicies should propagate
 func TestDeleteInlineRolePoliciesListRolePoliciesError(t *testing.T) {
-	listErr := errors.New("service error")
+	listErr := errors.New(errorService)
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesErrs: []error{listErr},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, listErr) {
-		t.Fatalf("expected error %v, got %v", listErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, listErr, err)
 	}
 }
 
 // Test 14: Error on DeleteRolePolicy should propagate non-NotFound errors
 func TestDeleteInlineRolePoliciesDeleteRolePolicyErrorPropagated(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	client := &fakeIAMDeleteClient{
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
-			{PolicyNames: []string{"policy-1"}, IsTruncated: false},
+			{PolicyNames: []string{testPolicy1Name}, IsTruncated: false},
 		},
 		deleteRolePolicyErrs: []error{deleteErr},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
@@ -4818,7 +4897,7 @@ func TestDeleteInlineRolePoliciesRoleNotFoundReturnsNil(t *testing.T) {
 		listRolePoliciesErrs: []error{errors.New("NoSuchEntity")},
 	}
 
-	err := deleteInlineRolePolicies(context.Background(), client, "test-role")
+	err := deleteInlineRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicies should return nil for NoSuchEntity, got error: %v", err)
 	}
@@ -4834,17 +4913,17 @@ func TestDeleteInlineRolePolicySuccessful(t *testing.T) {
 		deleteRolePolicyErrs: []error{nil},
 	}
 
-	err := deleteInlineRolePolicy(context.Background(), client, "test-role", "policy-1")
+	err := deleteInlineRolePolicy(context.Background(), client, testRoleName, testPolicy1Name)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicy should succeed, got error: %v", err)
 	}
 	if len(client.deleteRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DeleteRolePolicy call, got %d", len(client.deleteRolePolicyInputs))
+		t.Fatalf(errExpectedOneDeleteRolePolicyFmt, len(client.deleteRolePolicyInputs))
 	}
-	if sdkaws.ToString(client.deleteRolePolicyInputs[0].RoleName) != "test-role" {
+	if sdkaws.ToString(client.deleteRolePolicyInputs[0].RoleName) != testRoleName {
 		t.Fatalf("expected role name 'test-role'")
 	}
-	if sdkaws.ToString(client.deleteRolePolicyInputs[0].PolicyName) != "policy-1" {
+	if sdkaws.ToString(client.deleteRolePolicyInputs[0].PolicyName) != testPolicy1Name {
 		t.Fatalf("expected policy name 'policy-1'")
 	}
 }
@@ -4855,7 +4934,7 @@ func TestDeleteInlineRolePolicyNotFoundSuppressed(t *testing.T) {
 		deleteRolePolicyErrs: []error{errors.New("NoSuchEntity")},
 	}
 
-	err := deleteInlineRolePolicy(context.Background(), client, "test-role", "policy-1")
+	err := deleteInlineRolePolicy(context.Background(), client, testRoleName, testPolicy1Name)
 	if err != nil {
 		t.Fatalf("deleteInlineRolePolicy should suppress NoSuchEntity error, got error: %v", err)
 	}
@@ -4863,14 +4942,14 @@ func TestDeleteInlineRolePolicyNotFoundSuppressed(t *testing.T) {
 
 // Test 18: Other errors should be propagated
 func TestDeleteInlineRolePolicyOtherErrorPropagated(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	client := &fakeIAMDeleteClient{
 		deleteRolePolicyErrs: []error{deleteErr},
 	}
 
-	err := deleteInlineRolePolicy(context.Background(), client, "test-role", "policy-1")
+	err := deleteInlineRolePolicy(context.Background(), client, testRoleName, testPolicy1Name)
 	if !errors.Is(err, deleteErr) {
-		t.Fatalf("expected error %v, got %v", deleteErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, deleteErr, err)
 	}
 }
 
@@ -4886,7 +4965,7 @@ func TestDetachAttachedRolePoliciesZeroPolicies(t *testing.T) {
 		},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should succeed with zero policies, got error: %v", err)
 	}
@@ -4900,20 +4979,20 @@ func TestDetachAttachedRolePoliciesOnePolicy(t *testing.T) {
 	client := &fakeIAMDeleteClient{
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{
-				{PolicyArn: sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")},
+				{PolicyArn: sdkaws.String(testPolicyARN1)},
 			}, IsTruncated: false},
 		},
 		detachRolePolicyErrs: []error{nil},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("detachAttachedRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDetachAttachedPoliciesFmt, err)
 	}
 	if len(client.detachRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DetachRolePolicy call, got %d", len(client.detachRolePolicyInputs))
+		t.Fatalf(errExpectedOneDetachRolePolicyFmt, len(client.detachRolePolicyInputs))
 	}
-	if sdkaws.ToString(client.detachRolePolicyInputs[0].PolicyArn) != "arn:aws:iam::123456789012:policy/policy-1" {
+	if sdkaws.ToString(client.detachRolePolicyInputs[0].PolicyArn) != testPolicyARN1 {
 		t.Fatalf("expected correct policy ARN")
 	}
 }
@@ -4931,9 +5010,9 @@ func TestDetachAttachedRolePoliciesMultiplePoliciesNoPagination(t *testing.T) {
 		detachRolePolicyErrs: []error{nil, nil, nil},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("detachAttachedRolePolicies should succeed, got error: %v", err)
+		t.Fatalf(errDetachAttachedPoliciesFmt, err)
 	}
 	if len(client.detachRolePolicyInputs) != 3 {
 		t.Fatalf("expected 3 DetachRolePolicy calls, got %d", len(client.detachRolePolicyInputs))
@@ -4962,7 +5041,7 @@ func TestDetachAttachedRolePoliciesPaginationWithMarker(t *testing.T) {
 		detachRolePolicyErrs: []error{nil, nil, nil},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should succeed with pagination, got error: %v", err)
 	}
@@ -4973,20 +5052,20 @@ func TestDetachAttachedRolePoliciesPaginationWithMarker(t *testing.T) {
 
 // Test 23: Error on ListAttachedRolePolicies should propagate
 func TestDetachAttachedRolePoliciesListAttachedErrorPropagated(t *testing.T) {
-	listErr := errors.New("service error")
+	listErr := errors.New(errorService)
 	client := &fakeIAMDeleteClient{
 		listAttachedErrs: []error{listErr},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, listErr) {
-		t.Fatalf("expected error %v, got %v", listErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, listErr, err)
 	}
 }
 
 // Test 24: Error on DetachRolePolicy should propagate non-NotFound errors
 func TestDetachAttachedRolePoliciesDetachErrorPropagated(t *testing.T) {
-	detachErr := errors.New("access denied")
+	detachErr := errors.New(errorAccessDenied)
 	client := &fakeIAMDeleteClient{
 		listAttachedOutputs: []*iam.ListAttachedRolePoliciesOutput{
 			{AttachedPolicies: []iamtypes.AttachedPolicy{
@@ -4996,9 +5075,9 @@ func TestDetachAttachedRolePoliciesDetachErrorPropagated(t *testing.T) {
 		detachRolePolicyErrs: []error{detachErr},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if !errors.Is(err, detachErr) {
-		t.Fatalf("expected error %v, got %v", detachErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, detachErr, err)
 	}
 }
 
@@ -5008,7 +5087,7 @@ func TestDetachAttachedRolePoliciesRoleNotFoundReturnsNil(t *testing.T) {
 		listAttachedErrs: []error{errors.New("NoSuchEntity")},
 	}
 
-	err := detachAttachedRolePolicies(context.Background(), client, "test-role")
+	err := detachAttachedRolePolicies(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicies should return nil for NoSuchEntity, got error: %v", err)
 	}
@@ -5024,18 +5103,18 @@ func TestDetachAttachedRolePolicySuccessful(t *testing.T) {
 		detachRolePolicyErrs: []error{nil},
 	}
 
-	policyArn := sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")
-	err := detachAttachedRolePolicy(context.Background(), client, "test-role", policyArn)
+	policyArn := sdkaws.String(testPolicyARN1)
+	err := detachAttachedRolePolicy(context.Background(), client, testRoleName, policyArn)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicy should succeed, got error: %v", err)
 	}
 	if len(client.detachRolePolicyInputs) != 1 {
-		t.Fatalf("expected 1 DetachRolePolicy call, got %d", len(client.detachRolePolicyInputs))
+		t.Fatalf(errExpectedOneDetachRolePolicyFmt, len(client.detachRolePolicyInputs))
 	}
-	if sdkaws.ToString(client.detachRolePolicyInputs[0].RoleName) != "test-role" {
+	if sdkaws.ToString(client.detachRolePolicyInputs[0].RoleName) != testRoleName {
 		t.Fatalf("expected role name 'test-role'")
 	}
-	if sdkaws.ToString(client.detachRolePolicyInputs[0].PolicyArn) != "arn:aws:iam::123456789012:policy/policy-1" {
+	if sdkaws.ToString(client.detachRolePolicyInputs[0].PolicyArn) != testPolicyARN1 {
 		t.Fatalf("expected correct policy ARN")
 	}
 }
@@ -5046,8 +5125,8 @@ func TestDetachAttachedRolePolicyNotFoundSuppressed(t *testing.T) {
 		detachRolePolicyErrs: []error{errors.New("NoSuchEntity")},
 	}
 
-	policyArn := sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")
-	err := detachAttachedRolePolicy(context.Background(), client, "test-role", policyArn)
+	policyArn := sdkaws.String(testPolicyARN1)
+	err := detachAttachedRolePolicy(context.Background(), client, testRoleName, policyArn)
 	if err != nil {
 		t.Fatalf("detachAttachedRolePolicy should suppress NoSuchEntity error, got error: %v", err)
 	}
@@ -5055,15 +5134,15 @@ func TestDetachAttachedRolePolicyNotFoundSuppressed(t *testing.T) {
 
 // Test 28: Other errors should be propagated
 func TestDetachAttachedRolePolicyOtherErrorPropagated(t *testing.T) {
-	detachErr := errors.New("resource in use")
+	detachErr := errors.New(errorResourceInUse)
 	client := &fakeIAMDeleteClient{
 		detachRolePolicyErrs: []error{detachErr},
 	}
 
-	policyArn := sdkaws.String("arn:aws:iam::123456789012:policy/policy-1")
-	err := detachAttachedRolePolicy(context.Background(), client, "test-role", policyArn)
+	policyArn := sdkaws.String(testPolicyARN1)
+	err := detachAttachedRolePolicy(context.Background(), client, testRoleName, policyArn)
 	if !errors.Is(err, detachErr) {
-		t.Fatalf("expected error %v, got %v", detachErr, err)
+		t.Fatalf(errExpectedErrorGotFmt, detachErr, err)
 	}
 }
 
@@ -5144,12 +5223,12 @@ func TestForceDeleteS3BucketEmptySuccess(t *testing.T) {
 		deleteBucketErr: nil,
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 	if client.deleteBucketCalls != 1 {
-		t.Fatalf("expected 1 DeleteBucket call, got %d", client.deleteBucketCalls)
+		t.Fatalf(errExpectedOneDeleteBucketFmt, client.deleteBucketCalls)
 	}
 }
 
@@ -5159,8 +5238,8 @@ func TestForceDeleteS3BucketWithVersions(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
@@ -5168,15 +5247,15 @@ func TestForceDeleteS3BucketWithVersions(t *testing.T) {
 		deleteBucketErr: nil,
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 	if len(client.deleteCalls) != 2 {
 		t.Fatalf("expected 2 DeleteObject calls, got %d", len(client.deleteCalls))
 	}
 	if client.deleteBucketCalls != 1 {
-		t.Fatalf("expected 1 DeleteBucket call, got %d", client.deleteBucketCalls)
+		t.Fatalf(errExpectedOneDeleteBucketFmt, client.deleteBucketCalls)
 	}
 }
 
@@ -5187,23 +5266,23 @@ func TestForceDeleteS3BucketWithDeleteMarkers(t *testing.T) {
 			{
 				Versions: []s3types.ObjectVersion{},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm1")},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm2")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm2")},
 				},
 			},
 		},
 		deleteBucketErr: nil,
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 	if len(client.deleteCalls) != 2 {
 		t.Fatalf("expected 2 DeleteObject calls for markers, got %d", len(client.deleteCalls))
 	}
 	if client.deleteBucketCalls != 1 {
-		t.Fatalf("expected 1 DeleteBucket call, got %d", client.deleteBucketCalls)
+		t.Fatalf(errExpectedOneDeleteBucketFmt, client.deleteBucketCalls)
 	}
 }
 
@@ -5213,20 +5292,20 @@ func TestForceDeleteS3BucketVersionDeletionFails(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
 		},
-		deleteErr: errors.New("access denied"),
+		deleteErr: errors.New(errorAccessDenied),
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err == nil {
 		t.Fatal("expected error during version deletion")
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if client.deleteBucketCalls != 0 {
 		t.Fatalf("expected 0 DeleteBucket calls after error, got %d", client.deleteBucketCalls)
@@ -5242,12 +5321,12 @@ func TestForceDeleteS3BucketDeleteBucketNotFound(t *testing.T) {
 		deleteBucketErr: &s3types.NotFound{},
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err != nil {
 		t.Fatalf("expected NotFound error to be suppressed, got error: %v", err)
 	}
 	if client.deleteBucketCalls != 1 {
-		t.Fatalf("expected 1 DeleteBucket call, got %d", client.deleteBucketCalls)
+		t.Fatalf(errExpectedOneDeleteBucketFmt, client.deleteBucketCalls)
 	}
 }
 
@@ -5260,15 +5339,15 @@ func TestForceDeleteS3BucketDeleteBucketError(t *testing.T) {
 		deleteBucketErr: errors.New("bucket not empty"),
 	}
 
-	err := forceDeleteS3BucketWithClient(context.Background(), client, "test-bucket")
+	err := forceDeleteS3BucketWithClient(context.Background(), client, testBucketName)
 	if err == nil {
 		t.Fatal("expected error from DeleteBucket")
 	}
 	if !strings.Contains(err.Error(), "bucket not empty") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 	if client.deleteBucketCalls != 1 {
-		t.Fatalf("expected 1 DeleteBucket call, got %d", client.deleteBucketCalls)
+		t.Fatalf(errExpectedOneDeleteBucketFmt, client.deleteBucketCalls)
 	}
 }
 
@@ -5279,7 +5358,7 @@ func TestForceDeleteS3BucketDeleteBucketError(t *testing.T) {
 // Test 35: downloadBucketVersion successful
 func TestDownloadBucketVersionSuccessWithIO(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "state.tfstate")
+	targetFile := filepath.Join(tmpDir, defaultStateKey)
 
 	reader := strings.NewReader(`{"version": 3}`)
 	getObjectOutput := &s3.GetObjectOutput{
@@ -5294,7 +5373,7 @@ func TestDownloadBucketVersionSuccessWithIO(t *testing.T) {
 
 	err := downloadBucketVersion(context.Background(), client, "bucket", "key", "v1", targetFile)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	content, err := os.ReadFile(targetFile)
@@ -5319,7 +5398,7 @@ func TestDownloadBucketVersionGetObjectError(t *testing.T) {
 		t.Fatal("expected error from GetObject")
 	}
 	if !strings.Contains(err.Error(), "no such version") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5347,7 +5426,7 @@ func TestDownloadBucketVersionFileCreationError(t *testing.T) {
 // Test 38: downloadBucketVersion copy error
 func TestDownloadBucketVersionCopyError(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "state.tfstate")
+	targetFile := filepath.Join(tmpDir, defaultStateKey)
 
 	getObjectOutput := &s3.GetObjectOutput{
 		Body: io.NopCloser(&errorReaderForTest{}),
@@ -5364,7 +5443,7 @@ func TestDownloadBucketVersionCopyError(t *testing.T) {
 		t.Fatal("expected error during copy")
 	}
 	if !strings.Contains(err.Error(), "read error") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5388,14 +5467,14 @@ func TestBackupStateVersionSuccess(t *testing.T) {
 	}
 
 	version := s3types.ObjectVersion{
-		Key:       sdkaws.String("state.tfstate"),
+		Key:       sdkaws.String(defaultStateKey),
 		VersionId: sdkaws.String("v123"),
 		IsLatest:  sdkaws.Bool(true),
 	}
 
-	entry, err := backupStateVersion(context.Background(), client, "bucket", "state.tfstate", tmpDir, 1, version)
+	entry, err := backupStateVersion(context.Background(), client, "bucket", defaultStateKey, tmpDir, 1, version)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if entry["file"] != "state-000001.tfstate" {
@@ -5425,22 +5504,22 @@ func TestBackupStateVersionDownloadError(t *testing.T) {
 
 	client := &fakeStateS3Client{
 		getObjectFn: func(_ context.Context, _ *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
-			return nil, errors.New("access denied")
+			return nil, errors.New(errorAccessDenied)
 		},
 	}
 
 	version := s3types.ObjectVersion{
-		Key:       sdkaws.String("state.tfstate"),
+		Key:       sdkaws.String(defaultStateKey),
 		VersionId: sdkaws.String("v123"),
 		IsLatest:  sdkaws.Bool(false),
 	}
 
-	_, err := backupStateVersion(context.Background(), client, "bucket", "state.tfstate", tmpDir, 1, version)
+	_, err := backupStateVersion(context.Background(), client, "bucket", defaultStateKey, tmpDir, 1, version)
 	if err == nil {
 		t.Fatal("expected error during download")
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorAccessDenied) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5460,11 +5539,11 @@ func TestBackupStateVersionsMixedContent(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(false)},
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v2"), IsLatest: sdkaws.Bool(true)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(false)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v2"), IsLatest: sdkaws.Bool(true)},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("dm1"), IsLatest: sdkaws.Bool(false)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("dm1"), IsLatest: sdkaws.Bool(false)},
 				},
 			},
 		},
@@ -5477,9 +5556,9 @@ func TestBackupStateVersionsMixedContent(t *testing.T) {
 		},
 	}
 
-	err := backupStateVersions(context.Background(), client, "bucket", "state.tfstate", tmpDir)
+	err := backupStateVersions(context.Background(), client, "bucket", defaultStateKey, tmpDir)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	// Verify manifest
@@ -5520,7 +5599,7 @@ func TestBackupStateVersionsDirCreationError(t *testing.T) {
 	}
 
 	// Use invalid path
-	err := backupStateVersions(context.Background(), client, "bucket", "state.tfstate", "/invalid/nonexistent/deeply/nested/path")
+	err := backupStateVersions(context.Background(), client, "bucket", defaultStateKey, "/invalid/nonexistent/deeply/nested/path")
 	if err == nil {
 		t.Fatal("expected error during directory creation")
 	}
@@ -5533,12 +5612,12 @@ func TestBackupStateVersionsListErrorPath(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	err := backupStateVersions(context.Background(), client, "bucket", "state.tfstate", tmpDir)
+	err := backupStateVersions(context.Background(), client, "bucket", defaultStateKey, tmpDir)
 	if err == nil {
 		t.Fatal("expected error from listing objects")
 	}
 	if !strings.Contains(err.Error(), "bucket access denied") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5578,7 +5657,7 @@ func TestForceDeleteIAMRoleWithInlinePolicies(t *testing.T) {
 		deleteRoleErrs:       []error{nil},
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{
-				PolicyNames: []string{"policy-1", "policy-2"},
+				PolicyNames: []string{testPolicy1Name, testPolicy2Name},
 				IsTruncated: false,
 			},
 		},
@@ -5587,9 +5666,9 @@ func TestForceDeleteIAMRoleWithInlinePolicies(t *testing.T) {
 		},
 	}
 
-	err := forceDeleteIAMRoleWithClient(context.Background(), client, "test-role")
+	err := forceDeleteIAMRoleWithClient(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if len(client.deleteRolePolicyInputs) != 2 {
@@ -5622,9 +5701,9 @@ func TestForceDeleteIAMRoleWithAttachedPoliciesExtended(t *testing.T) {
 		},
 	}
 
-	err := forceDeleteIAMRoleWithClient(context.Background(), client, "test-role")
+	err := forceDeleteIAMRoleWithClient(context.Background(), client, testRoleName)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if len(client.detachRolePolicyInputs) != 2 {
@@ -5639,7 +5718,7 @@ func TestForceDeleteIAMRoleDeletionError(t *testing.T) {
 		deleteRolePolicyErrs: []error{},
 		listAttachedErrs:     []error{nil},
 		detachRolePolicyErrs: []error{},
-		deleteRoleErrs:       []error{errors.New("resource in use")},
+		deleteRoleErrs:       []error{errors.New(errorResourceInUse)},
 		listRolePoliciesOutputs: []*iam.ListRolePoliciesOutput{
 			{PolicyNames: []string{}, IsTruncated: false},
 		},
@@ -5648,12 +5727,12 @@ func TestForceDeleteIAMRoleDeletionError(t *testing.T) {
 		},
 	}
 
-	err := forceDeleteIAMRoleWithClient(context.Background(), client, "test-role")
+	err := forceDeleteIAMRoleWithClient(context.Background(), client, testRoleName)
 	if err == nil {
 		t.Fatal("expected error from DeleteRole")
 	}
-	if !strings.Contains(err.Error(), "resource in use") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorResourceInUse) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5777,7 +5856,7 @@ func TestBackupBackendStateSuccessExtended(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
@@ -5798,22 +5877,22 @@ func TestBackupBackendStateSuccessExtended(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
 	err := backupBackendState(context.Background(), s3Client, dynamoClient, cfg, backupDir, summary)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if summary.DeletedLockEntries != 1 {
@@ -5826,7 +5905,7 @@ func TestBackupBackendStateSuccessExtended(t *testing.T) {
 		t.Fatalf("expected S3 backup directory to exist: %v", err)
 	}
 
-	dynamoBackupFile := filepath.Join(backupDir, "dynamodb", "locks.json")
+	dynamoBackupFile := filepath.Join(backupDir, "dynamodb", locksJSONFile)
 	if _, err := os.Stat(dynamoBackupFile); err != nil {
 		t.Fatalf("expected DynamoDB backup file to exist: %v", err)
 	}
@@ -5844,9 +5923,9 @@ func TestBackupBackendStateS3ErrorPath(t *testing.T) {
 	dynamoClient := &fakeDynamoDBClient{}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
@@ -5855,7 +5934,7 @@ func TestBackupBackendStateS3ErrorPath(t *testing.T) {
 		t.Fatal("expected error from S3 backup")
 	}
 	if !strings.Contains(err.Error(), "s3 bucket error") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5875,9 +5954,9 @@ func TestBackupBackendStateDynamoError(t *testing.T) {
 	}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
@@ -5886,7 +5965,7 @@ func TestBackupBackendStateDynamoError(t *testing.T) {
 		t.Fatal("expected error from DynamoDB backup")
 	}
 	if !strings.Contains(err.Error(), "dynamodb scan error") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5899,9 +5978,9 @@ func TestBackupBackendStateDirCreationError(t *testing.T) {
 	dynamoClient := &fakeDynamoDBClient{}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "test-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := &backendResetSummary{}
@@ -5914,7 +5993,7 @@ func TestBackupBackendStateDirCreationError(t *testing.T) {
 // Test 52: backupLockEntries with scan pagination
 func TestBackupLockEntriesPagination(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "locks.json")
+	targetFile := filepath.Join(tmpDir, locksJSONFile)
 
 	client := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
@@ -5923,22 +6002,22 @@ func TestBackupLockEntriesPagination(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 				LastEvaluatedKey: map[string]dbtypes.AttributeValue{"id": &dbtypes.AttributeValueMemberS{Value: "marker"}},
 			},
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 				LastEvaluatedKey: nil,
 			},
 		},
 	}
 
-	items, err := backupLockEntries(context.Background(), client, "test-table", "state.tfstate", targetFile)
+	items, err := backupLockEntries(context.Background(), client, testTableName, defaultStateKey, targetFile)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if len(items) != 2 {
@@ -5958,13 +6037,13 @@ func TestBackupLockEntriesPagination(t *testing.T) {
 // Test 53: backupLockEntries with table not found
 func TestBackupLockEntriesTableNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "locks.json")
+	targetFile := filepath.Join(tmpDir, locksJSONFile)
 
 	client := &fakeDynamoDBClient{
 		describeErrs: []error{&dbtypes.ResourceNotFoundException{}},
 	}
 
-	items, err := backupLockEntries(context.Background(), client, "nonexistent-table", "state.tfstate", targetFile)
+	items, err := backupLockEntries(context.Background(), client, "nonexistent-table", defaultStateKey, targetFile)
 	if err != nil {
 		t.Fatalf("expected success with empty items, got error: %v", err)
 	}
@@ -5977,7 +6056,7 @@ func TestBackupLockEntriesTableNotFound(t *testing.T) {
 // Test 54: backupLockEntries scan error
 func TestBackupLockEntriesScanErrorPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	targetFile := filepath.Join(tmpDir, "locks.json")
+	targetFile := filepath.Join(tmpDir, locksJSONFile)
 
 	client := &fakeDynamoDBClient{
 		describeOutputs: []*dynamodb.DescribeTableOutput{
@@ -5986,12 +6065,12 @@ func TestBackupLockEntriesScanErrorPath(t *testing.T) {
 		scanErrs: []error{errors.New("scan access denied")},
 	}
 
-	_, err := backupLockEntries(context.Background(), client, "test-table", "state.tfstate", targetFile)
+	_, err := backupLockEntries(context.Background(), client, testTableName, defaultStateKey, targetFile)
 	if err == nil {
 		t.Fatal("expected error from scan")
 	}
 	if !strings.Contains(err.Error(), "scan access denied") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -5999,7 +6078,7 @@ func TestBackupLockEntriesScanErrorPath(t *testing.T) {
 func TestMarshalLockEntriesComplexTypes(t *testing.T) {
 	items := []map[string]dbtypes.AttributeValue{
 		{
-			"LockID":    &dbtypes.AttributeValueMemberS{Value: "state.tfstate"},
+			"LockID":    &dbtypes.AttributeValueMemberS{Value: defaultStateKey},
 			"Digest":    &dbtypes.AttributeValueMemberS{Value: "abc123"},
 			"Path":      &dbtypes.AttributeValueMemberS{Value: "/path"},
 			"Operation": &dbtypes.AttributeValueMemberS{Value: "OperationTypePlan"},
@@ -6011,7 +6090,7 @@ func TestMarshalLockEntriesComplexTypes(t *testing.T) {
 
 	serializable, err := marshalLockEntries(items)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if len(serializable) != 1 {
@@ -6019,7 +6098,7 @@ func TestMarshalLockEntriesComplexTypes(t *testing.T) {
 	}
 
 	entry := serializable[0]
-	if entry["LockID"] != "state.tfstate" {
+	if entry["LockID"] != defaultStateKey {
 		t.Fatalf("expected LockID to be state.tfstate, got %v", entry["LockID"])
 	}
 	if entry["Who"] != "user123" {
@@ -6055,17 +6134,17 @@ func TestDeleteLockEntriesSuccessExtended(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 		deleteItemErrs: []error{nil, nil},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "locks-table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, testLockTableName, defaultStateKey)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if client.deleteItemIndex != 2 {
@@ -6079,15 +6158,15 @@ func TestDeleteLockEntriesScanError(t *testing.T) {
 		describeOutputs: []*dynamodb.DescribeTableOutput{
 			{Table: &dbtypes.TableDescription{}},
 		},
-		scanErrs: []error{errors.New("scan failed")},
+		scanErrs: []error{errors.New(errorScanFailed)},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "locks-table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, testLockTableName, defaultStateKey)
 	if err == nil {
 		t.Fatal("expected error from scan")
 	}
-	if !strings.Contains(err.Error(), "scan failed") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorScanFailed) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -6100,38 +6179,38 @@ func TestDeleteLockEntriesDeleteErrorPath(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
-		deleteItemErrs: []error{errors.New("delete failed")},
+		deleteItemErrs: []error{errors.New(errorDeleteFailed)},
 	}
 
-	err := deleteLockEntries(context.Background(), client, "locks-table", "state.tfstate")
+	err := deleteLockEntries(context.Background(), client, testLockTableName, defaultStateKey)
 	if err == nil {
 		t.Fatal("expected error from delete")
 	}
-	if !strings.Contains(err.Error(), "delete failed") {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), errorDeleteFailed) {
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
 // Test 60: removeTerraformCache successful removal
 func TestRemoveTerraformCacheSuccessNew(t *testing.T) {
 	tmpDir := t.TempDir()
-	terraformDir := filepath.Join(tmpDir, ".terraform")
+	terraformDir := filepath.Join(tmpDir, dotTerraformDir)
 	if err := os.MkdirAll(terraformDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 	testFile := filepath.Join(terraformDir, "test.txt")
 	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	summary := &backendResetSummary{}
 	err := removeTerraformCache(terraformDir, summary)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if !summary.RemovedLocalTerraform {
@@ -6172,7 +6251,7 @@ func TestWriteJSONFileSuccess(t *testing.T) {
 
 	err := writeJSONFile(testFile, data)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	// Verify file was created and contains valid JSON
@@ -6215,13 +6294,13 @@ func TestLoadBackendStateConfigWithLocalOverride(t *testing.T) {
 	tmpDir := t.TempDir()
 	envsDir := filepath.Join(tmpDir, "envs")
 	if err := os.MkdirAll(envsDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	parseAssignmentsCalls := 0
 	parseAssignments := func(path string) (map[string]string, error) {
 		parseAssignmentsCalls++
-		if strings.Contains(path, "backend.local.hcl") {
+		if strings.Contains(path, backendLocalHCLFile) {
 			return map[string]string{
 				"bucket":         "local-bucket",
 				"dynamodb_table": "local-table",
@@ -6230,13 +6309,13 @@ func TestLoadBackendStateConfigWithLocalOverride(t *testing.T) {
 		return map[string]string{
 			"bucket":         "env-bucket",
 			"dynamodb_table": "env-table",
-			"key":            "state.tfstate",
+			"key":            defaultStateKey,
 		}, nil
 	}
 
 	cfg, err := loadBackendStateConfigForNuke(tmpDir, tmpDir, "dev", parseAssignments)
 	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
+		t.Fatalf(errExpectedSuccessFmt, err)
 	}
 
 	if cfg.BucketName != "env-bucket" {
@@ -6261,7 +6340,7 @@ func TestLoadBackendStateConfigIncomplete(t *testing.T) {
 		t.Fatal("expected error for incomplete config")
 	}
 	if !strings.Contains(err.Error(), "incomplete") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -6273,16 +6352,16 @@ func TestResetBackendStateForNukeSuccess(t *testing.T) {
 
 	envsDir := filepath.Join(tmpDir, "envs", "dev")
 	if err := os.MkdirAll(envsDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 	backendFile := filepath.Join(envsDir, "backend.hcl")
 	if err := os.WriteFile(backendFile, []byte("bucket = \"test-bucket\"\ndynamodb_table = \"locks-table\"\nkey = \"state.tfstate\""), 0o644); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
-	terraformDir := filepath.Join(stackDir, ".terraform")
+	terraformDir := filepath.Join(stackDir, dotTerraformDir)
 	if err := os.MkdirAll(terraformDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+		t.Fatalf(errSetupFmt, err)
 	}
 
 	reader := strings.NewReader(`{"version": 3}`)
@@ -6290,13 +6369,13 @@ func TestResetBackendStateForNukeSuccess(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1"), IsLatest: sdkaws.Bool(true)},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
@@ -6313,7 +6392,7 @@ func TestResetBackendStateForNukeSuccess(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
@@ -6321,9 +6400,9 @@ func TestResetBackendStateForNukeSuccess(t *testing.T) {
 	}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "locks-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testLockTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	summary := backendResetSummary{
@@ -6376,7 +6455,7 @@ func TestResetBackendStateForNukeConfigErrorPath(t *testing.T) {
 		t.Fatal("expected error from config load")
 	}
 	if !strings.Contains(err.Error(), "config load failed") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -6389,13 +6468,13 @@ func TestResetBackendStateForNukeVersionDeletionError(t *testing.T) {
 		listOutputs: []*s3.ListObjectVersionsOutput{
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
 			{
 				Versions: []s3types.ObjectVersion{
-					{Key: sdkaws.String("state.tfstate"), VersionId: sdkaws.String("v1")},
+					{Key: sdkaws.String(defaultStateKey), VersionId: sdkaws.String("v1")},
 				},
 				DeleteMarkers: []s3types.DeleteMarkerEntry{},
 			},
@@ -6418,9 +6497,9 @@ func TestResetBackendStateForNukeVersionDeletionError(t *testing.T) {
 	}
 
 	cfg := backendStateConfig{
-		BucketName: "test-bucket",
-		TableName:  "locks-table",
-		StateKey:   "state.tfstate",
+		BucketName: testBucketName,
+		TableName:  testLockTableName,
+		StateKey:   defaultStateKey,
 	}
 
 	backupDir := filepath.Join(tmpDir, "backup")
@@ -6442,7 +6521,7 @@ func TestResetBackendStateForNukeVersionDeletionError(t *testing.T) {
 		t.Fatal("expected error from version deletion")
 	}
 	if !strings.Contains(err.Error(), "version deletion failed") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpectedFmt, err)
 	}
 }
 
@@ -6458,13 +6537,13 @@ func TestBackupLockEntriesFileWriteError(t *testing.T) {
 		scanOutputs: []*dynamodb.ScanOutput{
 			{
 				Items: []map[string]dbtypes.AttributeValue{
-					{"LockID": &dbtypes.AttributeValueMemberS{Value: "state.tfstate"}},
+					{"LockID": &dbtypes.AttributeValueMemberS{Value: defaultStateKey}},
 				},
 			},
 		},
 	}
 
-	_, err := backupLockEntries(context.Background(), client, "test-table", "state.tfstate", targetFile)
+	_, err := backupLockEntries(context.Background(), client, testTableName, defaultStateKey, targetFile)
 	// May or may not error depending on permissions
 	if err == nil {
 		// If it succeeded, we're fine
@@ -6475,27 +6554,27 @@ func TestBackupLockEntriesFileWriteError(t *testing.T) {
 
 // Test 70: cloudControlTypedMapping lambda function
 func TestCloudControlTypedMappingLambdaExtended(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("lambda", "lambda/function")
+	mapping, ok := cloudControlTypedMapping("lambda", resourceTypeLambdaFunction)
 	if !ok {
 		t.Fatal("expected mapping for lambda/function")
 	}
-	if mapping.cfnType != "AWS::Lambda::Function" {
+	if mapping.cfnType != cfnTypeLambdaFunction {
 		t.Fatalf("expected AWS::Lambda::Function, got %s", mapping.cfnType)
 	}
 
-	name := mapping.identifier("my-function", "arn:aws:lambda:us-east-1:123456789012:function:my-function")
-	if name != "my-function" {
+	name := mapping.identifier(testFunctionName, "arn:aws:lambda:us-east-1:123456789012:function:my-function")
+	if name != testFunctionName {
 		t.Fatalf("expected 'my-function', got '%s'", name)
 	}
 }
 
 // Test 71: cloudControlTypedMapping logs log-group
 func TestCloudControlTypedMappingLogsExtended(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("logs", "logs/log-group")
+	mapping, ok := cloudControlTypedMapping("logs", resourceTypeLogsLogGroup)
 	if !ok {
 		t.Fatal("expected mapping for logs/log-group")
 	}
-	if mapping.cfnType != "AWS::Logs::LogGroup" {
+	if mapping.cfnType != cfnTypeLogsLogGroup {
 		t.Fatalf("expected AWS::Logs::LogGroup, got %s", mapping.cfnType)
 	}
 }
@@ -6553,7 +6632,7 @@ func TestForceDeleteIAMRoleDirectWithNotFoundError(t *testing.T) {
 	client := &directTestIAMClient{
 		deleteRoleErr: errors.New("NoSuchEntity"),
 	}
-	err := forceDeleteIAMRole(context.Background(), client, "test-role")
+	err := forceDeleteIAMRole(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("forceDeleteIAMRole should suppress NotFound error, got: %v", err)
 	}
@@ -6564,11 +6643,11 @@ func TestForceDeleteIAMRoleDirectWithNotFoundError(t *testing.T) {
 
 // Test: forceDeleteIAMRole propagates non-NotFound errors from DeleteRole
 func TestForceDeleteIAMRoleDirectWithOtherError(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	client := &directTestIAMClient{
 		deleteRoleErr: deleteErr,
 	}
-	err := forceDeleteIAMRole(context.Background(), client, "test-role")
+	err := forceDeleteIAMRole(context.Background(), client, testRoleName)
 	if !errors.Is(err, deleteErr) {
 		t.Fatalf("forceDeleteIAMRole should propagate error, got: %v", err)
 	}
@@ -6608,7 +6687,7 @@ func TestForceDeleteS3BucketDirectWithNotFoundError(t *testing.T) {
 	client := &directTestS3Client{
 		deleteBucketErr: errors.New("bucket not found"),
 	}
-	err := forceDeleteS3Bucket(context.Background(), client, "test-bucket")
+	err := forceDeleteS3Bucket(context.Background(), client, testBucketName)
 	if err != nil {
 		t.Fatalf("forceDeleteS3Bucket should suppress not found error, got: %v", err)
 	}
@@ -6616,11 +6695,11 @@ func TestForceDeleteS3BucketDirectWithNotFoundError(t *testing.T) {
 
 // Test: forceDeleteS3Bucket propagates non-NotFound errors from DeleteBucket
 func TestForceDeleteS3BucketDirectWithOtherError(t *testing.T) {
-	deleteErr := errors.New("access denied")
+	deleteErr := errors.New(errorAccessDenied)
 	client := &directTestS3Client{
 		deleteBucketErr: deleteErr,
 	}
-	err := forceDeleteS3Bucket(context.Background(), client, "test-bucket")
+	err := forceDeleteS3Bucket(context.Background(), client, testBucketName)
 	if !errors.Is(err, deleteErr) {
 		t.Fatalf("forceDeleteS3Bucket should propagate error, got: %v", err)
 	}
@@ -6628,40 +6707,40 @@ func TestForceDeleteS3BucketDirectWithOtherError(t *testing.T) {
 
 // Test: cloudControlTypedMapping covers additional resource type branches
 func TestCloudControlTypedMappingKMSKey(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("kms", "kms/key")
+	mapping, ok := cloudControlTypedMapping("kms", resourceTypeKMSKey)
 	if !ok {
 		t.Fatal("cloudControlTypedMapping should find kms/key mapping")
 	}
-	if mapping.cfnType != "AWS::KMS::Key" {
+	if mapping.cfnType != cfnTypeKMSKey {
 		t.Fatalf("cfnType = %q, want AWS::KMS::Key", mapping.cfnType)
 	}
 }
 
 // Test: cloudControlTypedMapping for CloudFront distribution
 func TestCloudControlTypedMappingCloudFrontDistribution(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("cloudfront", "cloudfront/distribution")
+	mapping, ok := cloudControlTypedMapping("cloudfront", resourceTypeCloudFrontDistribution)
 	if !ok {
 		t.Fatal("cloudControlTypedMapping should find cloudfront/distribution mapping")
 	}
-	if mapping.cfnType != "AWS::CloudFront::Distribution" {
+	if mapping.cfnType != cfnTypeCloudFrontDistribution {
 		t.Fatalf("cfnType = %q, want AWS::CloudFront::Distribution", mapping.cfnType)
 	}
 }
 
 // Test: cloudControlTypedMapping for Route53 hosted zone
 func TestCloudControlTypedMappingRoute53HostedZone(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("route53", "route53/hostedzone")
+	mapping, ok := cloudControlTypedMapping("route53", resourceTypeRoute53HostedZone)
 	if !ok {
 		t.Fatal("cloudControlTypedMapping should find route53/hostedzone mapping")
 	}
-	if mapping.cfnType != "AWS::Route53::HostedZone" {
+	if mapping.cfnType != cfnTypeRoute53HostedZone {
 		t.Fatalf("cfnType = %q, want AWS::Route53::HostedZone", mapping.cfnType)
 	}
 }
 
 // Test: cloudControlTypedMapping for unmatched type returns false
 func TestCloudControlTypedMappingNotFound(t *testing.T) {
-	_, ok := cloudControlTypedMapping("unknown", "unknown/type")
+	_, ok := cloudControlTypedMapping("unknown", testResourceTypeUnknown)
 	if ok {
 		t.Fatal("cloudControlTypedMapping should return false for unknown mapping")
 	}
@@ -6670,7 +6749,7 @@ func TestCloudControlTypedMappingNotFound(t *testing.T) {
 // Test: forceDeleteIAMRole succeeds without any policies to delete
 func TestForceDeleteIAMRoleDirectNoPoliciesToDelete(t *testing.T) {
 	client := &directTestIAMClient{}
-	err := forceDeleteIAMRole(context.Background(), client, "test-role")
+	err := forceDeleteIAMRole(context.Background(), client, testRoleName)
 	if err != nil {
 		t.Fatalf("forceDeleteIAMRole should succeed with no policies, got: %v", err)
 	}
@@ -6695,7 +6774,7 @@ func (f *directTestS3ClientNotFound) DeleteBucket(ctx context.Context, in *s3.De
 // Test: forceDeleteS3Bucket handles S3 NotFound type error from DeleteBucket
 func TestForceDeleteS3BucketDirectWithS3NotFoundType(t *testing.T) {
 	client := &directTestS3ClientNotFound{returnNotFound: true}
-	err := forceDeleteS3Bucket(context.Background(), client, "test-bucket")
+	err := forceDeleteS3Bucket(context.Background(), client, testBucketName)
 	if err != nil {
 		t.Fatalf("forceDeleteS3Bucket should suppress S3 NotFound type error, got: %v", err)
 	}
@@ -6703,22 +6782,22 @@ func TestForceDeleteS3BucketDirectWithS3NotFoundType(t *testing.T) {
 
 // Test: cloudControlTypedMapping for CloudTrail trail
 func TestCloudControlTypedMappingCloudTrail(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("cloudtrail", "cloudtrail/trail")
+	mapping, ok := cloudControlTypedMapping("cloudtrail", resourceTypeCloudTrailTrail)
 	if !ok {
 		t.Fatal("cloudControlTypedMapping should find cloudtrail/trail mapping")
 	}
-	if mapping.cfnType != "AWS::CloudTrail::Trail" {
+	if mapping.cfnType != cfnTypeCloudTrailTrail {
 		t.Fatalf("cfnType = %q, want AWS::CloudTrail::Trail", mapping.cfnType)
 	}
 }
 
 // Test: cloudControlTypedMapping for ACM certificate
 func TestCloudControlTypedMappingACM(t *testing.T) {
-	mapping, ok := cloudControlTypedMapping("acm", "acm/certificate")
+	mapping, ok := cloudControlTypedMapping("acm", resourceTypeACMCertificate)
 	if !ok {
 		t.Fatal("cloudControlTypedMapping should find acm/certificate mapping")
 	}
-	if mapping.cfnType != "AWS::CertificateManager::Certificate" {
+	if mapping.cfnType != cfnTypeACMCertificate {
 		t.Fatalf("cfnType = %q, want AWS::CertificateManager::Certificate", mapping.cfnType)
 	}
 }
@@ -6765,7 +6844,7 @@ func TestForceDeleteIAMRoleDirectErrorFromInlineDelete(t *testing.T) {
 	client := &directTestIAMClientWithErrors{
 		listRolePoliciesErr: deleteErr,
 	}
-	err := forceDeleteIAMRole(context.Background(), client, "test-role")
+	err := forceDeleteIAMRole(context.Background(), client, testRoleName)
 	if !errors.Is(err, deleteErr) {
 		t.Fatalf("forceDeleteIAMRole should propagate inline deletion error, got: %v", err)
 	}
@@ -6777,7 +6856,7 @@ func TestForceDeleteIAMRoleDirectErrorFromAttachedDetach(t *testing.T) {
 	client := &directTestIAMClientWithErrors{
 		listAttachedErr: detachErr,
 	}
-	err := forceDeleteIAMRole(context.Background(), client, "test-role")
+	err := forceDeleteIAMRole(context.Background(), client, testRoleName)
 	if !errors.Is(err, detachErr) {
 		t.Fatalf("forceDeleteIAMRole should propagate attached policy error, got: %v", err)
 	}
@@ -6817,7 +6896,7 @@ func TestForceDeleteS3BucketDirectErrorFromVersionDelete(t *testing.T) {
 	client := &directTestS3ClientWithErrors{
 		listVersionsErr: listErr,
 	}
-	err := forceDeleteS3Bucket(context.Background(), client, "test-bucket")
+	err := forceDeleteS3Bucket(context.Background(), client, testBucketName)
 	if !errors.Is(err, listErr) {
 		t.Fatalf("forceDeleteS3Bucket should propagate version deletion error, got: %v", err)
 	}

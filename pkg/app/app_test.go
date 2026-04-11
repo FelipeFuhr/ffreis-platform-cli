@@ -21,6 +21,11 @@ type testContextKey string
 
 const appTestContextKey testContextKey = "key"
 
+const (
+	errExitCode1Format = "expected exit code 1, got %d"
+	testAWSRegion      = "us-east-1"
+)
+
 func (fakeSTSClient) GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error) {
 	return &sts.GetCallerIdentityOutput{Account: sdkaws.String("123456789012"), Arn: sdkaws.String("arn:aws:sts::123456789012:assumed-role/example/session")}, nil
 }
@@ -39,7 +44,7 @@ func TestExecuteReturnsExitErrorAndWritesMessage(t *testing.T) {
 	cmd := &cobra.Command{RunE: func(*cobra.Command, []string) error { return assertErr{} }}
 	var stderr bytes.Buffer
 	if code := Execute(cmd, &stderr); code != 1 {
-		t.Fatalf("expected exit code 1, got %d", code)
+		t.Fatalf(errExitCode1Format, code)
 	}
 	if got := stderr.String(); got != "error: boom\n" {
 		t.Fatalf("unexpected stderr: %q", got)
@@ -69,7 +74,7 @@ func TestNewRootSkipsAWSForLocalCommands(t *testing.T) {
 	if code := Execute(cmd, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
-	if region != "us-east-1" || logLevel != "info" || env != "prod" || org != "ffreis" {
+	if region != testAWSRegion || logLevel != "info" || env != "prod" || org != "ffreis" {
 		t.Fatalf("unexpected defaults: region=%q logLevel=%q env=%q org=%q", region, logLevel, env, org)
 	}
 	if profile != "" {
@@ -87,7 +92,7 @@ func TestNewRootRunsAuthFlowAndPublishesRuntime(t *testing.T) {
 		Flags:                 FlagBindings{Profile: &profile, Region: &region, LogLevel: &logLevel, Env: &env, Org: &org},
 		ValidateEnv:           func(string) error { return nil },
 		LoadAWSConfig: func(context.Context, string, string) (sdkaws.Config, error) {
-			return sdkaws.Config{Region: "us-east-1", Credentials: credentials.NewStaticCredentialsProvider("AKIAINIT", "secret", "token")}, nil
+			return sdkaws.Config{Region: testAWSRegion, Credentials: credentials.NewStaticCredentialsProvider("AKIAINIT", "secret", "token")}, nil
 		},
 		NewSTSClient: func(sdkaws.Config) sharedauth.STSAPI {
 			return fakeSTSClient{}
@@ -212,7 +217,7 @@ func TestBuildPersistentPreRunWithAfterAuthError(t *testing.T) {
 		Flags:       FlagBindings{Profile: &profile, Region: &region, LogLevel: &logLevel, Env: &env, Org: &org},
 		ValidateEnv: func(string) error { return nil },
 		LoadAWSConfig: func(context.Context, string, string) (sdkaws.Config, error) {
-			return sdkaws.Config{Region: "us-east-1", Credentials: credentials.NewStaticCredentialsProvider("AKIAINIT", "secret", "token")}, nil
+			return sdkaws.Config{Region: testAWSRegion, Credentials: credentials.NewStaticCredentialsProvider("AKIAINIT", "secret", "token")}, nil
 		},
 		NewSTSClient: func(sdkaws.Config) sharedauth.STSAPI {
 			return fakeSTSClient{}
@@ -221,10 +226,12 @@ func TestBuildPersistentPreRunWithAfterAuthError(t *testing.T) {
 			return wantErr
 		},
 	})
-	cmd.AddCommand(&cobra.Command{Use: "plan", Run: func(*cobra.Command, []string) {}})
+	cmd.AddCommand(&cobra.Command{Use: "plan", Run: func(*cobra.Command, []string) {
+		// Intentionally empty: this test only exercises the AfterAuth error path.
+	}})
 	cmd.SetArgs([]string{"plan"})
 	if code := Execute(cmd, &bytes.Buffer{}); code != 1 {
-		t.Fatalf("expected exit code 1, got %d", code)
+		t.Fatalf(errExitCode1Format, code)
 	}
 }
 
@@ -276,9 +283,11 @@ func TestBuildPersistentPreRunWithAuthenticationError(t *testing.T) {
 			return sdkaws.Config{}, errors.New("failed to load AWS config")
 		},
 	})
-	cmd.AddCommand(&cobra.Command{Use: "apply", Run: func(*cobra.Command, []string) {}})
+	cmd.AddCommand(&cobra.Command{Use: "apply", Run: func(*cobra.Command, []string) {
+		// Intentionally empty: this test only exercises the LoadAWSConfig error path.
+	}})
 	cmd.SetArgs([]string{"apply"})
 	if code := Execute(cmd, &bytes.Buffer{}); code != 1 {
-		t.Fatalf("expected exit code 1, got %d", code)
+		t.Fatalf(errExitCode1Format, code)
 	}
 }

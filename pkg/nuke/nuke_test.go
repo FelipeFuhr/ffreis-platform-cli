@@ -11,16 +11,21 @@ import (
 	"github.com/ffreis/platform-cli/pkg/tfexec"
 )
 
+const (
+	confirmNukeProdInput = "nuke-prod\n"
+	confirmNukeProdText  = "nuke-prod"
+)
+
 func TestConfirm(t *testing.T) {
 	var prompt bytes.Buffer
-	ok, err := Confirm(bytes.NewBufferString("nuke-prod\n"), &prompt, "nuke-prod")
+	ok, err := Confirm(bytes.NewBufferString(confirmNukeProdInput), &prompt, confirmNukeProdText)
 	if err != nil {
 		t.Fatalf("Confirm() error = %v", err)
 	}
 	if !ok {
 		t.Fatal("Confirm() = false, want true")
 	}
-	if prompt.String() != "Type \"nuke-prod\" to confirm: " {
+	if prompt.String() != "Type \""+confirmNukeProdText+"\" to confirm: " {
 		t.Fatalf("unexpected prompt: %q", prompt.String())
 	}
 }
@@ -39,7 +44,7 @@ func TestRunDestroyUsesFailureHandler(t *testing.T) {
 		Stack:         "/repo/stack",
 		Env:           "prod",
 		Creds:         auth.RawCreds{},
-		ConfirmReader: bytes.NewBufferString("nuke-prod\n"),
+		ConfirmReader: bytes.NewBufferString(confirmNukeProdInput),
 		Init: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
 		},
@@ -61,7 +66,7 @@ func TestRunDestroyUsesFailureHandler(t *testing.T) {
 }
 
 func TestConfirmNoInput(t *testing.T) {
-	ok, err := Confirm(bytes.NewBuffer(nil), nil, "nuke-prod")
+	ok, err := Confirm(bytes.NewBuffer(nil), nil, confirmNukeProdText)
 	if err == nil || ok {
 		t.Fatalf("expected no-input error, got ok=%v err=%v", ok, err)
 	}
@@ -71,7 +76,7 @@ func TestRunDestroyInitError(t *testing.T) {
 	wantErr := errors.New("init failed")
 	err := RunDestroy(context.Background(), DestroyOptions{
 		Env:           "prod",
-		ConfirmReader: bytes.NewBufferString("nuke-prod\n"),
+		ConfirmReader: bytes.NewBufferString(confirmNukeProdInput),
 		Init: func(context.Context, string, string, string, auth.RawCreds) error {
 			return wantErr
 		},
@@ -87,7 +92,7 @@ func TestRunDestroySuccess(t *testing.T) {
 		Stack:         "/repo/stack",
 		Env:           "prod",
 		Creds:         auth.RawCreds{},
-		ConfirmReader: bytes.NewBufferString("nuke-prod\n"),
+		ConfirmReader: bytes.NewBufferString(confirmNukeProdInput),
 		Init: func(context.Context, string, string, string, auth.RawCreds) error {
 			return nil
 		},
