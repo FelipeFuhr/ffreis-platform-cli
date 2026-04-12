@@ -186,7 +186,7 @@ func ResourceTypeFromARN(arn string) string {
 		return "route53/hostedzone"
 	case service == "cloudfront" && strings.HasPrefix(resource, "distribution/"):
 		return "cloudfront/distribution"
-	case service == "apigateway" && strings.Contains(resource, "/apis/"):
+	case service == "apigateway" && strings.HasPrefix(resource, "apis/"):
 		return "apigatewayv2/api"
 	case service == "iam" && strings.HasPrefix(resource, "role/"):
 		return "iam/role"

@@ -247,3 +247,37 @@ func TestRunApplyUsesDefaultFunctions(t *testing.T) {
 		t.Fatal("expected error when terraform is not available")
 	}
 }
+
+func TestRunPlanExitCode1ReturnsError(t *testing.T) {
+	_, err := RunPlan(context.Background(), PlanOptions{
+		Root:  "/repo",
+		Stack: testStackPath,
+		Env:   "prod",
+		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
+			return nil
+		},
+		RunTerraform: func(context.Context, tfexec.RunOptions) (int, error) {
+			return 1, nil // exit code 1 = plan error
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for terraform plan exit code 1, got nil")
+	}
+}
+
+func TestRunApplyNonZeroExitCodeReturnsError(t *testing.T) {
+	_, err := RunApply(context.Background(), ApplyOptions{
+		Root:  "/repo",
+		Stack: testStackPath,
+		Env:   "prod",
+		EnsureInit: func(context.Context, string, string, string, auth.RawCreds) error {
+			return nil
+		},
+		RunTerraform: func(context.Context, tfexec.RunOptions) (int, error) {
+			return 1, nil // non-zero exit = apply failure
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for terraform apply non-zero exit code, got nil")
+	}
+}

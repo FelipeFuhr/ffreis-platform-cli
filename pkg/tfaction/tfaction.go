@@ -2,6 +2,7 @@ package tfaction
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/ffreis/platform-cli/pkg/auth"
@@ -73,6 +74,9 @@ func RunPlan(ctx context.Context, opts PlanOptions) (PlanResult, error) {
 	if err != nil {
 		return PlanResult{}, err
 	}
+	if code != 0 && code != 2 {
+		return PlanResult{}, fmt.Errorf("terraform plan failed with exit code %d", code)
+	}
 	return PlanResult{ExitCode: code, HasChanges: code == 2}, nil
 }
 
@@ -108,6 +112,9 @@ func RunApply(ctx context.Context, opts ApplyOptions) (ApplyResult, error) {
 	})
 	if err != nil {
 		return ApplyResult{}, err
+	}
+	if code != 0 {
+		return ApplyResult{}, fmt.Errorf("terraform apply failed with exit code %d", code)
 	}
 	return ApplyResult{ExitCode: code}, nil
 }

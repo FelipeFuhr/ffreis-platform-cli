@@ -40,8 +40,12 @@ func (o *CommandOutput) Summary(title string, parts ...string) {
 	o.Line(title + ": " + strings.Join(filtered, "  "))
 }
 
-func (o *CommandOutput) Status(_, label, detail string) {
-	o.Line("[" + label + "] " + detail)
+func (o *CommandOutput) Status(kind, label, detail string) {
+	w := o.out
+	if kind == "warn" || kind == "error" {
+		w = o.err
+	}
+	writeLine(w, "["+label+"] "+detail)
 }
 
 func (o *CommandOutput) Table(headers []string, rows [][]string) error {

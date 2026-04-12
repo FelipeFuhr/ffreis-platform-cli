@@ -206,6 +206,16 @@ func TestRepoRootNotFound(t *testing.T) {
 	}
 }
 
+func stubTerraformBin(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	fakeBin := filepath.Join(dir, "terraform")
+	if err := os.WriteFile(fakeBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("create fake terraform: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func TestTerraformInitWithSuccess(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
@@ -216,20 +226,17 @@ func TestTerraformInitWithSuccess(t *testing.T) {
 		t.Fatalf(errMkdirStackFormat, err)
 	}
 
-	// Create a mock backend.hcl
 	backendFile := filepath.Join(root, EnvsDirName, "test", "backend.hcl")
 	if err := os.WriteFile(backendFile, []byte("bucket = \"test\""), 0o644); err != nil {
 		t.Fatalf("write backend: %v", err)
 	}
 
-	// We can't actually run terraform, so we just verify the function structure works
-	// In a real scenario, this would call out to terraform with the right args
-	creds := auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"}
+	stubTerraformBin(t)
 
-	// This will fail because terraform isn't installed, but that's OK for coverage
-	err := TerraformInit(context.Background(), stack, root, "test", creds)
-	// Error is expected since terraform isn't available, but we've covered the code path
-	_ = err // Intentionally ignoring error for this coverage test
+	creds := auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"}
+	if err := TerraformInit(context.Background(), stack, root, "test", creds); err != nil {
+		t.Fatalf("TerraformInit() error = %v", err)
+	}
 }
 
 func TestEnsureInitWhenNotInitialised(t *testing.T) {
@@ -250,10 +257,12 @@ func TestEnsureInitWhenNotInitialised(t *testing.T) {
 		t.Fatal("stack should not be initialised initially")
 	}
 
+	stubTerraformBin(t)
+
 	creds := auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"}
-	// This will attempt to call terraform init, which will fail since terraform isn't available
-	// But it tests the code path
-	_ = EnsureInit(context.Background(), stack, root, "test", creds)
+	if err := EnsureInit(context.Background(), stack, root, "test", creds); err != nil {
+		t.Fatalf("EnsureInit() error = %v", err)
+	}
 }
 
 func TestEnsureInitWhenAlreadyInitialised(t *testing.T) {

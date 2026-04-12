@@ -106,7 +106,7 @@ func TestResourceTypeFromARNTypes(t *testing.T) {
 		{"iam policy", "arn:aws:iam::123456789012:policy/my-policy", "iam/policy"},
 		// API Gateway
 		{"apigateway api", "arn:aws:apigateway:us-east-1::/restapis/abc123", "apigateway/restapis"},
-		{"apigatewayv2 api", "arn:aws:apigateway:us-east-1::/apis/abc123/stages/prod", "apigateway/apis"},
+		{"apigatewayv2 api", "arn:aws:apigateway:us-east-1::/apis/abc123/stages/prod", "apigatewayv2/api"},
 		// KMS
 		{"kms key", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012", "kms/key"},
 		// ACM
