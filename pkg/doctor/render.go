@@ -29,30 +29,40 @@ type RenderOptions struct {
 
 func PrintReport(out Renderer, report Report, opts RenderOptions) error {
 	for idx, section := range report.Sections {
-		if opts.UseSectionHeaders {
-			if idx > 0 {
-				out.Blank()
-			}
-			if headerOut, ok := out.(sectionHeaderer); ok {
-				headerOut.Header(section.Title, "")
-			} else {
-				out.Summary(section.Title, sectionSummaryParts(section, opts)...)
-			}
-		} else {
-			out.Summary(section.Title, sectionSummaryParts(section, opts)...)
-		}
-		rows := make([][]string, 0, len(section.Checks))
-		for _, check := range section.Checks {
-			rows = append(rows, reportRow(check, opts))
-		}
-		if err := out.Table(reportHeaders(opts), rows); err != nil {
+		renderSectionHeading(out, section, opts, idx)
+		if err := out.Table(reportHeaders(opts), reportRows(section.Checks, opts)); err != nil {
 			return err
 		}
-		if !opts.UseSectionHeaders {
-			out.Blank()
-		}
+		renderSectionSpacing(out, opts)
 	}
 	return nil
+}
+
+func renderSectionHeading(out Renderer, section Section, opts RenderOptions, index int) {
+	if opts.UseSectionHeaders {
+		if index > 0 {
+			out.Blank()
+		}
+		if headerOut, ok := out.(sectionHeaderer); ok {
+			headerOut.Header(section.Title, "")
+			return
+		}
+	}
+	out.Summary(section.Title, sectionSummaryParts(section, opts)...)
+}
+
+func reportRows(checks []Check, opts RenderOptions) [][]string {
+	rows := make([][]string, 0, len(checks))
+	for _, check := range checks {
+		rows = append(rows, reportRow(check, opts))
+	}
+	return rows
+}
+
+func renderSectionSpacing(out Renderer, opts RenderOptions) {
+	if !opts.UseSectionHeaders {
+		out.Blank()
+	}
 }
 
 func PrintSummary(out interface{ Summary(string, ...string) }, report Report, opts RenderOptions) {

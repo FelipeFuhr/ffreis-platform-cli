@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -11,6 +12,23 @@ type fakeRenderer struct {
 	tableHeaders [][]string
 	tables       [][][]string
 	blanks       int
+	tableErr     error
+}
+
+type summaryOnlyRenderer struct {
+	base *fakeRenderer
+}
+
+func (s *summaryOnlyRenderer) Summary(title string, parts ...string) {
+	s.base.Summary(title, parts...)
+}
+
+func (s *summaryOnlyRenderer) Table(headers []string, rows [][]string) error {
+	return s.base.Table(headers, rows)
+}
+
+func (s *summaryOnlyRenderer) Blank() {
+	s.base.Blank()
 }
 
 func (f *fakeRenderer) Summary(title string, parts ...string) {
@@ -24,7 +42,7 @@ func (f *fakeRenderer) Header(title, subtitle string) {
 func (f *fakeRenderer) Table(headers []string, rows [][]string) error {
 	f.tableHeaders = append(f.tableHeaders, headers)
 	f.tables = append(f.tables, rows)
-	return nil
+	return f.tableErr
 }
 
 func (f *fakeRenderer) Blank() { f.blanks++ }
@@ -80,5 +98,44 @@ func TestPrintReportWithSectionHeadersAndHintColumn(t *testing.T) {
 	}
 	if got := renderer.tables[0][0]; !reflect.DeepEqual(got, []string{"badge:ok", "ready", "yes", "-"}) {
 		t.Fatalf("row = %#v", got)
+	}
+}
+
+func TestPrintReportSectionHeaderFallbackUsesSummary(t *testing.T) {
+	base := &fakeRenderer{}
+	renderer := &summaryOnlyRenderer{base: base}
+	report := Report{Sections: []Section{
+		{Title: "Runtime", Checks: []Check{{Status: "ok", Title: "ready", Detail: "yes"}}},
+		{Title: "Config", Checks: []Check{{Status: "warn", Title: "missing", Detail: "optional"}}},
+	}}
+	if err := PrintReport(renderer, report, RenderOptions{UseSectionHeaders: true}); err != nil {
+		t.Fatalf("PrintReport returned error: %v", err)
+	}
+	if len(base.headers) != 0 {
+		t.Fatalf("headers = %#v, want no header calls", base.headers)
+	}
+	if len(base.summaries) != 2 {
+		t.Fatalf("summary calls = %d, want 2", len(base.summaries))
+	}
+	if base.blanks != 1 {
+		t.Fatalf("blank calls = %d, want 1", base.blanks)
+	}
+	if got := base.summaries[0][0]; got != "Runtime" {
+		t.Fatalf("first summary title = %v, want Runtime", got)
+	}
+	if got := base.summaries[1][0]; got != "Config" {
+		t.Fatalf("second summary title = %v, want Config", got)
+	}
+}
+
+func TestPrintReportReturnsTableError(t *testing.T) {
+	wantErr := errors.New("table failed")
+	renderer := &fakeRenderer{tableErr: wantErr}
+	report := Report{Sections: []Section{{Title: "Contract", Checks: []Check{{Status: "ok", Title: "ready", Detail: "yes"}}}}}
+	if err := PrintReport(renderer, report, RenderOptions{}); !errors.Is(err, wantErr) {
+		t.Fatalf("PrintReport() error = %v, want %v", err, wantErr)
+	}
+	if renderer.blanks != 0 {
+		t.Fatalf("blank calls = %d, want 0 after table error", renderer.blanks)
 	}
 }
