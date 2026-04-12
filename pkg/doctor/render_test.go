@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const errPrintReportFmt = "PrintReport returned error: %v"
+
 type fakeRenderer struct {
 	summaries    [][2]any
 	headers      [][2]string
@@ -51,7 +53,7 @@ func TestPrintReportAndSummary(t *testing.T) {
 	renderer := &fakeRenderer{}
 	report := Report{Summary: Summary{OK: 1, Warn: 1, Fail: 1, Info: 1}, Sections: []Section{{Title: "Contract", Checks: []Check{{Status: "ok", Title: "ready", Detail: "yes"}, {Status: "info", Title: "hint", Detail: "optional", Hint: "fine"}}}}}
 	if err := PrintReport(renderer, report, RenderOptions{IncludeInfo: true}); err != nil {
-		t.Fatalf("PrintReport returned error: %v", err)
+		t.Fatalf(errPrintReportFmt, err)
 	}
 	PrintSummary(renderer, report, RenderOptions{SummaryTitle: "Integrity Summary", IncludeInfo: true})
 	if len(renderer.summaries) != 2 {
@@ -85,7 +87,7 @@ func TestPrintReportWithSectionHeadersAndHintColumn(t *testing.T) {
 			return "badge:" + status
 		},
 	}); err != nil {
-		t.Fatalf("PrintReport returned error: %v", err)
+		t.Fatalf(errPrintReportFmt, err)
 	}
 	if len(renderer.headers) != 1 || renderer.headers[0][0] != "Runtime" {
 		t.Fatalf("headers = %#v, want Runtime header", renderer.headers)
@@ -109,7 +111,7 @@ func TestPrintReportSectionHeaderFallbackUsesSummary(t *testing.T) {
 		{Title: "Config", Checks: []Check{{Status: "warn", Title: "missing", Detail: "optional"}}},
 	}}
 	if err := PrintReport(renderer, report, RenderOptions{UseSectionHeaders: true}); err != nil {
-		t.Fatalf("PrintReport returned error: %v", err)
+		t.Fatalf(errPrintReportFmt, err)
 	}
 	if len(base.headers) != 0 {
 		t.Fatalf("headers = %#v, want no header calls", base.headers)
