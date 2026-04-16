@@ -884,7 +884,17 @@ func ensureLockTableExists(ctx context.Context, client stateDynamoAPI, table str
 
 func lockEntryMatches(item map[string]dbtypes.AttributeValue, key string) bool {
 	member, ok := item["LockID"].(*dbtypes.AttributeValueMemberS)
-	return ok && member.Value == key
+	if !ok {
+		return false
+	}
+	lockID := member.Value
+	// Match exact key or any variant (suffixes like -md5, different prefixes containing the key)
+	// Examples that should match for key "platform-org/prod/terraform.tfstate":
+	//   - "platform-org/prod/terraform.tfstate"
+	//   - "platform-org/prod/terraform.tfstate-md5"
+	//   - "ffreis-tf-state-root/platform-org/prod/terraform.tfstate"
+	//   - "ffreis-tf-state-root/platform-org/prod/terraform.tfstate-md5"
+	return lockID == key || strings.HasPrefix(lockID, key+"-") || strings.HasSuffix(lockID, "/"+key) || strings.Contains(lockID, "/"+key+"-")
 }
 
 func marshalLockEntries(items []map[string]dbtypes.AttributeValue) ([]map[string]any, error) {

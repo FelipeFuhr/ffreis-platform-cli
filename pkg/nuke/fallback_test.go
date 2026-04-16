@@ -4405,8 +4405,21 @@ func TestLockEntryMatches(t *testing.T) {
 		key      string
 		expected bool
 	}{
-		{"match", defaultStateKey, defaultStateKey, true},
-		{"no match", otherStateKey, defaultStateKey, false},
+		// Exact match (primary key)
+		{"exact match", "platform-org/prod/terraform.tfstate", "platform-org/prod/terraform.tfstate", true},
+		{"exact no match", "other-stack/prod/terraform.tfstate", "platform-org/prod/terraform.tfstate", false},
+
+		// MD5 suffix variants (terraform may create these)
+		{"md5 suffix match", "platform-org/prod/terraform.tfstate-md5", "platform-org/prod/terraform.tfstate", true},
+		{"md5 suffix no match", "other-stack/prod/terraform.tfstate-md5", "platform-org/prod/terraform.tfstate", false},
+
+		// Different prefix variants (from stale state or nuke incompleteness)
+		{"prefix variant match", "ffreis-tf-state-root/platform-org/prod/terraform.tfstate", "platform-org/prod/terraform.tfstate", true},
+		{"prefix md5 variant match", "ffreis-tf-state-root/platform-org/prod/terraform.tfstate-md5", "platform-org/prod/terraform.tfstate", true},
+
+		// Legacy unrelated entries should not match
+		{"completely different", "some-other-key", "platform-org/prod/terraform.tfstate", false},
+		{"substring only", "platform-org/prod/terraform.tfstate.backup", "platform-org/prod/terraform.tfstate", false},
 	}
 
 	for _, tt := range tests {
