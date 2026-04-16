@@ -271,13 +271,22 @@ func TestEnsureInitWhenAlreadyInitialised(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(stack, ".terraform"), 0o755); err != nil {
 		t.Fatalf("mkdir .terraform: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, EnvsDirName, "test"), 0o755); err != nil {
+		t.Fatalf(errMkdirEnvFormat, err)
+	}
+	backendFile := filepath.Join(root, EnvsDirName, "test", "backend.hcl")
+	if err := os.WriteFile(backendFile, []byte("bucket = \"test\""), 0o644); err != nil {
+		t.Fatalf("write backend: %v", err)
+	}
 
 	if !IsInitialised(stack) {
 		t.Fatal("stack should be initialised")
 	}
 
-	// EnsureInit should return nil immediately without trying to init
-	err := EnsureInit(context.Background(), stack, root, "test", auth.RawCreds{})
+	stubTerraformBin(t)
+
+	// EnsureInit now always runs init -upgrade to refresh modules
+	err := EnsureInit(context.Background(), stack, root, "test", auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"})
 	if err != nil {
 		t.Fatalf("EnsureInit() error = %v", err)
 	}
