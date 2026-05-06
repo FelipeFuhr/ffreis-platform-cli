@@ -128,9 +128,15 @@ func TerraformInit(ctx context.Context, stackPath, root, env string, creds auth.
 }
 
 func EnsureInit(ctx context.Context, stackPath, root, env string, creds auth.RawCreds) error {
-	// Always run init with -upgrade to ensure modules are refreshed.
-	// This is safe, idempotent, and fast when there are no changes.
-	// Git-sourced modules need -upgrade to pull latest changes.
+	if IsInitialised(stackPath) {
+		return nil
+	}
+	return TerraformInit(ctx, stackPath, root, env, creds)
+}
+
+// EnsureInitUpgrade always runs terraform init -upgrade regardless of initialisation state.
+// Use this when modules sourced from git or remote registries must be refreshed.
+func EnsureInitUpgrade(ctx context.Context, stackPath, root, env string, creds auth.RawCreds) error {
 	return TerraformInit(ctx, stackPath, root, env, creds)
 }
 

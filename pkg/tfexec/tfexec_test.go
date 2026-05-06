@@ -2,6 +2,7 @@ package tfexec
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,6 +217,22 @@ func stubTerraformBin(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
+// stubTerraformBinRecording creates a fake terraform binary that appends its
+// arguments (one invocation per line) to a temp file, and returns the path to
+// that file so tests can assert which commands were executed.
+func stubTerraformBinRecording(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	callsFile := filepath.Join(dir, "terraform-calls")
+	script := fmt.Sprintf("#!/bin/sh\necho \"$@\" >> %s\nexit 0\n", callsFile)
+	fakeBin := filepath.Join(dir, "terraform")
+	if err := os.WriteFile(fakeBin, []byte(script), 0o755); err != nil {
+		t.Fatalf("create fake terraform: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return callsFile
+}
+
 func TestTerraformInitWithSuccess(t *testing.T) {
 	root := t.TempDir()
 	stack := filepath.Join(root, StackDirName)
@@ -283,12 +300,59 @@ func TestEnsureInitWhenAlreadyInitialised(t *testing.T) {
 		t.Fatal("stack should be initialised")
 	}
 
-	stubTerraformBin(t)
+	callsFile := stubTerraformBinRecording(t)
 
-	// EnsureInit now always runs init -upgrade to refresh modules
 	err := EnsureInit(context.Background(), stack, root, "test", auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"})
 	if err != nil {
 		t.Fatalf("EnsureInit() error = %v", err)
+	}
+
+	// EnsureInit must skip terraform when the stack is already initialised.
+	calls, err := os.ReadFile(callsFile)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read calls file: %v", err)
+	}
+	if len(calls) > 0 {
+		t.Errorf("expected terraform not to be invoked for an already-initialised stack, got: %s", calls)
+	}
+}
+
+func TestEnsureInitUpgrade(t *testing.T) {
+	root := t.TempDir()
+	stack := filepath.Join(root, StackDirName)
+	if err := os.MkdirAll(filepath.Join(stack, ".terraform"), 0o755); err != nil {
+		t.Fatalf("mkdir .terraform: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, EnvsDirName, "test"), 0o755); err != nil {
+		t.Fatalf(errMkdirEnvFormat, err)
+	}
+	backendFile := filepath.Join(root, EnvsDirName, "test", "backend.hcl")
+	if err := os.WriteFile(backendFile, []byte("bucket = \"test\""), 0o644); err != nil {
+		t.Fatalf("write backend: %v", err)
+	}
+
+	if !IsInitialised(stack) {
+		t.Fatal("stack should be initialised before the call")
+	}
+
+	callsFile := stubTerraformBinRecording(t)
+
+	err := EnsureInitUpgrade(context.Background(), stack, root, "test", auth.RawCreds{AccessKeyID: "test", SecretAccessKey: "test", Region: "us-east-1"})
+	if err != nil {
+		t.Fatalf("EnsureInitUpgrade() error = %v", err)
+	}
+
+	// EnsureInitUpgrade must always invoke terraform init -upgrade.
+	calls, err := os.ReadFile(callsFile)
+	if err != nil {
+		t.Fatalf("read calls file: %v", err)
+	}
+	callStr := string(calls)
+	if !strings.Contains(callStr, "init") {
+		t.Errorf("expected terraform init to be invoked, got: %s", callStr)
+	}
+	if !strings.Contains(callStr, "-upgrade") {
+		t.Errorf("expected -upgrade flag in terraform invocation, got: %s", callStr)
 	}
 }
 

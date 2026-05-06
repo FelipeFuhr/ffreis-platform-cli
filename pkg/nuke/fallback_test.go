@@ -4420,6 +4420,8 @@ func TestLockEntryMatches(t *testing.T) {
 		// Legacy unrelated entries should not match
 		{"completely different", "some-other-key", "platform-org/prod/terraform.tfstate", false},
 		{"substring only", "platform-org/prod/terraform.tfstate.backup", "platform-org/prod/terraform.tfstate", false},
+		{"dash suffix no match", "platform-org/prod/terraform.tfstate-backup", "platform-org/prod/terraform.tfstate", false},
+		{"dash suffix path no match", "ffreis-tf-state-root/platform-org/prod/terraform.tfstate-old", "platform-org/prod/terraform.tfstate", false},
 	}
 
 	for _, tt := range tests {
