@@ -11,7 +11,7 @@ MODULE_TOOLCHAIN := $(shell sed -n 's/^toolchain //p' go.mod | head -n1)
 GO_TOOLCHAIN ?= $(if $(MODULE_TOOLCHAIN),$(MODULE_TOOLCHAIN),go$(GO_VERSION).0)
 
 GOFMT         ?= gofmt
-GOLANGCI_LINT_VERSION ?= v1.64.8
+GOLANGCI_LINT_VERSION ?= v2.11.3
 GITLEAKS      ?= gitleaks
 COVERAGE_MIN  ?= 35
 COVERAGE_PACKAGES ?= ./...
@@ -96,17 +96,17 @@ ensure-golangci-lint:
 	@if [ "$(GOLANGCI_LINT)" = "$(LOCAL_GOLANGCI_LINT)" ]; then \
 		mkdir -p $(LEFTHOOK_DIR); \
 		if [ ! -x "$(LOCAL_GOLANGCI_LINT)" ] \
-			|| ! "$(LOCAL_GOLANGCI_LINT)" version 2>/dev/null | grep -Eq 'golangci-lint has version (v)?1\.' \
+			|| ! "$(LOCAL_GOLANGCI_LINT)" version 2>/dev/null | grep -Eq 'golangci-lint has version (v)?2\.' \
 			|| ! go version -m "$(LOCAL_GOLANGCI_LINT)" 2>/dev/null | grep -Eq '^[[:space:]]+go[[:space:]]+$(GO_TOOLCHAIN)$$'; then \
 			echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION) with $(GO_TOOLCHAIN) into $(LEFTHOOK_DIR)"; \
-			GOTOOLCHAIN=$(GO_TOOLCHAIN) GOBIN=$(LEFTHOOK_DIR) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+			GOTOOLCHAIN=$(GO_TOOLCHAIN) GOBIN=$(LEFTHOOK_DIR) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
 		fi; \
 	fi
 
 ## lint: run golangci-lint
 lint: ensure-golangci-lint
 	@command -v $(GOLANGCI_LINT) >/dev/null 2>&1 || (echo "Missing tool: $(GOLANGCI_LINT). Run: make lefthook-bootstrap" && exit 1)
-	@$(GOLANGCI_LINT) version 2>/dev/null | grep -Eq 'golangci-lint has version (v)?1\.' || (echo "golangci-lint v1 is required. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)" && exit 1)
+	@$(GOLANGCI_LINT) version 2>/dev/null | grep -Eq 'golangci-lint has version (v)?2\.' || (echo "golangci-lint v2 is required. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)" && exit 1)
 	$(GOLANGCI_LINT) run ./...
 
 ## validate: static analysis and compilation check (go vet + build)
