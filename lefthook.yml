@@ -4,6 +4,12 @@ remotes:
     configs:
       - lefthook/base.yml
       - lefthook/go.yml
+pre-commit:
+  commands:
+    # Override remote: only run lint when Go source files are staged
+    lint:
+      glob: "{**/*.go,go.mod,go.sum}"
+      run: make lint
 
 pre-push:
   parallel: false
