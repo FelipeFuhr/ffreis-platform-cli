@@ -4,7 +4,6 @@ remotes:
     configs:
       - lefthook/base.yml
       - lefthook/go.yml
-
 pre-commit:
   commands:
     # Override remote: only run lint when Go source files are staged
