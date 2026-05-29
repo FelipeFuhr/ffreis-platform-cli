@@ -11,8 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
-	sharedauth "github.com/ffreis/platform-cli/pkg/auth"
 	"github.com/spf13/cobra"
+
+	sharedauth "github.com/ffreis/platform-cli/pkg/auth"
 )
 
 type fakeSTSClient struct{}
@@ -172,10 +173,10 @@ func TestShouldSkipAuth(t *testing.T) {
 func TestEnsureStringPtrWithNil(t *testing.T) {
 	// Test that nil input creates a new string pointer
 	result := ensureStringPtr(nil)
-	if result == nil {
+	if result == nil { //nolint:staticcheck // t.Fatal exits via runtime.Goexit
 		t.Fatal("expected non-nil pointer from ensureStringPtr(nil)")
 	}
-	if *result != "" {
+	if *result != "" { //nolint:staticcheck // nil case exits via t.Fatal above
 		t.Fatalf("expected empty string, got %q", *result)
 	}
 }

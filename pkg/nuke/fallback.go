@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	sharedaudit "github.com/ffreis/platform-cli/pkg/audit"
 	sharedoutput "github.com/ffreis/platform-cli/pkg/output"
 	"github.com/ffreis/platform-cli/pkg/tfexec"
@@ -694,7 +695,7 @@ func resetBackendStateForNuke(ctx context.Context, opts FallbackOptions, backupD
 }
 
 func backupStateVersions(ctx context.Context, client stateS3API, bucket, key, dir string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	index := 0
@@ -729,7 +730,7 @@ func downloadBucketVersion(ctx context.Context, client stateS3API, bucket, key, 
 		return err
 	}
 	defer func() { _ = out.Body.Close() }()
-	file, err := os.Create(target)
+	file, err := os.Create(target) //nolint:gosec // backup target path is operator-controlled
 	if err != nil {
 		return err
 	}
@@ -751,7 +752,7 @@ func backupLockEntries(ctx context.Context, client stateDynamoAPI, table, key, t
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 		return nil, err
 	}
 	if err := writeJSONFile(target, serializable); err != nil {
@@ -765,7 +766,7 @@ func writeJSONFile(path string, value any) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 func isNotFoundError(err error) bool {
@@ -792,7 +793,7 @@ func formatPurgeError(resource sharedaudit.Resource, err error) string {
 }
 
 func backupBackendState(ctx context.Context, s3Client stateS3API, dynamoClient stateDynamoAPI, cfg backendStateConfig, backupDir string, summary *backendResetSummary) error {
-	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+	if err := os.MkdirAll(backupDir, 0o750); err != nil {
 		return err
 	}
 	if err := backupStateVersions(ctx, s3Client, cfg.BucketName, cfg.StateKey, filepath.Join(backupDir, "s3")); err != nil {

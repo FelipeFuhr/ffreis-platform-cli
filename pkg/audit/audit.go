@@ -8,6 +8,7 @@ import (
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	taggingtypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
+
 	"github.com/ffreis/platform-cli/pkg/inventory"
 )
 

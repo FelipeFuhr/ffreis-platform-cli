@@ -17,7 +17,7 @@ const (
 )
 
 func ParseSimpleAssignments(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is from operator-controlled config
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func CheckOptionalBackendLocal(path string) Check {
 }
 
 func CheckFetchedVars(path, env string) Check {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is from operator-controlled config
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Check{

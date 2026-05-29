@@ -20,6 +20,7 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	sharedaudit "github.com/ffreis/platform-cli/pkg/audit"
 )
 
