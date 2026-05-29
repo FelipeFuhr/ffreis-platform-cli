@@ -173,10 +173,10 @@ func TestShouldSkipAuth(t *testing.T) {
 func TestEnsureStringPtrWithNil(t *testing.T) {
 	// Test that nil input creates a new string pointer
 	result := ensureStringPtr(nil)
-	if result == nil { //nolint:staticcheck // t.Fatal exits via runtime.Goexit
+	if result == nil {
 		t.Fatal("expected non-nil pointer from ensureStringPtr(nil)")
 	}
-	if *result != "" { //nolint:staticcheck // nil case exits via t.Fatal above
+	if *result != "" {
 		t.Fatalf("expected empty string, got %q", *result)
 	}
 }
