@@ -63,7 +63,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
         with:
-          version: v1.64.8
+          version: v2.4.0
           install-mode: goinstall
           args: --path-prefix=. --timeout=5m
 

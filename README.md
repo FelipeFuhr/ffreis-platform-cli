@@ -2,11 +2,7 @@
 
 Shared Go toolkit for downstream platform Terraform CLIs.
 
-This module is intended for repos such as:
-
-- `ffreis-platform-shared-infra`
-- `ffreis-flemming-infra`
-- `ffreis-website-infra`
+This module is intended for private platform infrastructure repos that wrap Terraform with a Go CLI.
 
 It provides reusable building blocks for:
 
