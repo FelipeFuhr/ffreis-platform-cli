@@ -42,7 +42,7 @@ jobs:
     with:
       working-directory: "."
       scan-history: true
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   codeql:
     permissions:
@@ -70,7 +70,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep-sarif.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
       working-directory: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   trivy-fs:
     needs: changes
@@ -86,7 +86,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
       scan-ref: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   grype-fs:
     needs: changes
@@ -102,7 +102,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
       path: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   osv:
     needs: changes
@@ -118,7 +118,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
       working-directory: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   snyk:
     if: false
@@ -129,4 +129,4 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     with:
       working-directory: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
