@@ -81,6 +81,38 @@ jobs:
       working-directory: "."
       upload-sarif: false
 
+  trivy-fs:
+    needs: changes
+    if: |
+      always() && (
+        needs.changes.result == 'skipped' ||
+        needs.changes.outputs.code == 'true'
+      )
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    with:
+      scan-ref: "."
+      upload-sarif: false
+
+  grype-fs:
+    needs: changes
+    if: |
+      always() && (
+        needs.changes.result == 'skipped' ||
+        needs.changes.outputs.code == 'true'
+      )
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    with:
+      path: "."
+      upload-sarif: false
+
   osv:
     needs: changes
     if: |
