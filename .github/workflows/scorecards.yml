@@ -10,9 +10,14 @@ on:
   # To guarantee Maintained check is occasionally updated. See
   # https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained
   schedule:
-    - cron: '20 7 * * 2'
+    - cron: '50 6 16 * *'  # monthly scattered (was: 20 7 * * 2)
   push:
     branches: ["main"]
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analysis:
