@@ -694,34 +694,46 @@ func resetBackendStateForNuke(ctx context.Context, opts FallbackOptions, backupD
 	return summary, nil
 }
 
+// versionManifestCollector accumulates backup manifest entries across S3 version pages.
+type versionManifestCollector struct {
+	ctx      context.Context
+	client   stateS3API
+	bucket   string
+	key      string
+	dir      string
+	index    int
+	manifest []map[string]any
+}
+
+func (c *versionManifestCollector) collectPage(out *s3.ListObjectVersionsOutput) error {
+	for _, version := range out.Versions {
+		if sdkaws.ToString(version.Key) != c.key {
+			continue
+		}
+		c.index++
+		entry, err := backupStateVersion(c.ctx, c.client, c.bucket, c.key, c.dir, c.index, version)
+		if err != nil {
+			return err
+		}
+		c.manifest = append(c.manifest, entry)
+	}
+	for _, marker := range out.DeleteMarkers {
+		if sdkaws.ToString(marker.Key) == c.key {
+			c.manifest = append(c.manifest, deleteMarkerManifestEntry(c.key, marker))
+		}
+	}
+	return nil
+}
+
 func backupStateVersions(ctx context.Context, client stateS3API, bucket, key, dir string) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	index := 0
-	manifest := []map[string]any{}
-	if err := walkObjectVersionPages(ctx, client, bucket, key, func(out *s3.ListObjectVersionsOutput) error {
-		for _, version := range out.Versions {
-			if sdkaws.ToString(version.Key) != key {
-				continue
-			}
-			index++
-			entry, err := backupStateVersion(ctx, client, bucket, key, dir, index, version)
-			if err != nil {
-				return err
-			}
-			manifest = append(manifest, entry)
-		}
-		for _, marker := range out.DeleteMarkers {
-			if sdkaws.ToString(marker.Key) == key {
-				manifest = append(manifest, deleteMarkerManifestEntry(key, marker))
-			}
-		}
-		return nil
-	}); err != nil {
+	collector := &versionManifestCollector{ctx: ctx, client: client, bucket: bucket, key: key, dir: dir}
+	if err := walkObjectVersionPages(ctx, client, bucket, key, collector.collectPage); err != nil {
 		return err
 	}
-	return writeJSONFile(filepath.Join(dir, "manifest.json"), manifest)
+	return writeJSONFile(filepath.Join(dir, "manifest.json"), collector.manifest)
 }
 
 func downloadBucketVersion(ctx context.Context, client stateS3API, bucket, key, versionID, target string) (retErr error) {
