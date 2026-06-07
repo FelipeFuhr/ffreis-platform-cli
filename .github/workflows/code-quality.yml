@@ -69,7 +69,11 @@ jobs:
 
           repo_name="${GITHUB_REPOSITORY#*/}"
           owner_lower="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          project_key="${SONAR_PROJECT_KEY:-${owner_lower}_${repo_name}}"
+          file_key=""
+          if [ -f sonar-project.properties ]; then
+            file_key="$(sed -n 's/^sonar\.projectKey=//p' sonar-project.properties | head -1)"
+          fi
+          project_key="${SONAR_PROJECT_KEY:-${file_key:-${owner_lower}_${repo_name}}}"
 
           base_ref="${BASE_REF:-main}"
 
