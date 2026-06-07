@@ -696,7 +696,6 @@ func resetBackendStateForNuke(ctx context.Context, opts FallbackOptions, backupD
 
 // versionManifestCollector accumulates backup manifest entries across S3 version pages.
 type versionManifestCollector struct {
-	ctx      context.Context
 	client   stateS3API
 	bucket   string
 	key      string
@@ -705,13 +704,13 @@ type versionManifestCollector struct {
 	manifest []map[string]any
 }
 
-func (c *versionManifestCollector) collectPage(out *s3.ListObjectVersionsOutput) error {
+func (c *versionManifestCollector) collectPage(ctx context.Context, out *s3.ListObjectVersionsOutput) error {
 	for _, version := range out.Versions {
 		if sdkaws.ToString(version.Key) != c.key {
 			continue
 		}
 		c.index++
-		entry, err := backupStateVersion(c.ctx, c.client, c.bucket, c.key, c.dir, c.index, version)
+		entry, err := backupStateVersion(ctx, c.client, c.bucket, c.key, c.dir, c.index, version)
 		if err != nil {
 			return err
 		}
@@ -729,8 +728,10 @@ func backupStateVersions(ctx context.Context, client stateS3API, bucket, key, di
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	collector := &versionManifestCollector{ctx: ctx, client: client, bucket: bucket, key: key, dir: dir}
-	if err := walkObjectVersionPages(ctx, client, bucket, key, collector.collectPage); err != nil {
+	collector := &versionManifestCollector{client: client, bucket: bucket, key: key, dir: dir}
+	if err := walkObjectVersionPages(ctx, client, bucket, key, func(out *s3.ListObjectVersionsOutput) error {
+		return collector.collectPage(ctx, out)
+	}); err != nil {
 		return err
 	}
 	return writeJSONFile(filepath.Join(dir, "manifest.json"), collector.manifest)
