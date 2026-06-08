@@ -2,10 +2,11 @@ name: DevOps / Security
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main, master]
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "54 2 6 * *"  # monthly scattered (was: 0 6 * * 1)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,12 +34,20 @@ jobs:
               - '!**/*.md'
               - '!docs/**'
 
-  gitleaks:
+  security-fs:
+    needs: changes
+    if: |
+      always() && (
+        needs.changes.result == 'skipped' ||
+        needs.changes.outputs.code == 'true'
+      )
     permissions:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    # Consolidated fs-security bundle: Trivy(fs) + Grype(fs) + gitleaks in ONE job
+    # (was 3 separate jobs). upload-sarif off: GHAS/code-scanning not enabled.
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-security-fs.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
       scan-history: true
@@ -49,7 +58,7 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       languages: "go"
       source-root: "."
@@ -57,7 +66,7 @@ jobs:
   govulncheck:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       go-version: "1.25.9"
       working-directory: "."
@@ -67,41 +76,9 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep-sarif.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep-sarif.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
-      upload-sarif: false
-
-  trivy-fs:
-    needs: changes
-    if: |
-      always() && (
-        needs.changes.result == 'skipped' ||
-        needs.changes.outputs.code == 'true'
-      )
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
-    with:
-      scan-ref: "."
-      upload-sarif: false
-
-  grype-fs:
-    needs: changes
-    if: |
-      always() && (
-        needs.changes.result == 'skipped' ||
-        needs.changes.outputs.code == 'true'
-      )
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
-    with:
-      path: "."
       upload-sarif: false
 
   osv:
@@ -115,7 +92,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
       upload-sarif: false
@@ -126,7 +103,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
       upload-sarif: false
