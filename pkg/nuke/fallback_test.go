@@ -5614,8 +5614,15 @@ func TestBackupStateVersionsDirCreationError(t *testing.T) {
 		},
 	}
 
-	// Use invalid path
-	err := backupStateVersions(context.Background(), client, "bucket", defaultStateKey, "/invalid/nonexistent/deeply/nested/path")
+	// Use a path that is unreachable even as root: a subdir of an existing file.
+	tmpFile, err := os.CreateTemp(t.TempDir(), "notadir")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	_ = tmpFile.Close()
+	invalidDir := filepath.Join(tmpFile.Name(), "subdir")
+
+	err = backupStateVersions(context.Background(), client, "bucket", defaultStateKey, invalidDir)
 	if err == nil {
 		t.Fatal("expected error during directory creation")
 	}
@@ -5987,8 +5994,13 @@ func TestBackupBackendStateDynamoError(t *testing.T) {
 
 // Test 51: backupBackendState backup directory creation error
 func TestBackupBackendStateDirCreationError(t *testing.T) {
-	// Use invalid path
-	backupDir := "/invalid/nonexistent/deeply/nested/backup/path"
+	// Use a path that is unreachable even as root: a subdir of an existing file.
+	tmpFile, fileErr := os.CreateTemp(t.TempDir(), "notadir")
+	if fileErr != nil {
+		t.Fatalf("failed to create temp file: %v", fileErr)
+	}
+	_ = tmpFile.Close()
+	backupDir := filepath.Join(tmpFile.Name(), "subdir")
 
 	s3Client := &fakeStateS3Client{}
 	dynamoClient := &fakeDynamoDBClient{}

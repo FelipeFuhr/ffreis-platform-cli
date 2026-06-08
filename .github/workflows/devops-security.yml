@@ -52,6 +52,7 @@ jobs:
       working-directory: "."
       scan-history: true
       upload-sarif: false
+
   codeql:
     permissions:
       actions: read
@@ -94,7 +95,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
 
   snyk:
     if: false
@@ -105,4 +106,4 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@caa797cc7baec52e99f21b86f532a4b7c88cf4fa # fix/grype-install-outside-scan-path
     with:
       working-directory: "."
-      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      upload-sarif: false
