@@ -1,5 +1,9 @@
 # ffreis-platform-cli
 
+<!-- ffreis-badges:start -->
+[![CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FelipeFuhr/ffreis-badges/main/badges/ffreis-platform-cli/ci.json)](https://github.com/FelipeFuhr/ffreis-platform-cli/actions) [![License](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FelipeFuhr/ffreis-badges/main/badges/ffreis-platform-cli/license.json)](https://github.com/FelipeFuhr/ffreis-platform-cli/blob/main/LICENSE)
+<!-- ffreis-badges:end -->
+
 Shared Go toolkit for downstream platform Terraform CLIs.
 
 This module is intended for private platform infrastructure repos that wrap Terraform with a Go CLI.
