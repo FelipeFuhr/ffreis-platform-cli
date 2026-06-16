@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ffreis/platform-cli/pkg/auth"
+	"github.com/FelipeFuhr/ffreis-platform-cli/pkg/auth"
 )
 
 const (

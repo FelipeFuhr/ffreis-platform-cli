@@ -3,7 +3,7 @@ package doctor
 import (
 	"strings"
 
-	sharedoutput "github.com/ffreis/platform-cli/pkg/output"
+	sharedoutput "github.com/FelipeFuhr/ffreis-platform-cli/pkg/output"
 )
 
 type Renderer interface {

@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	taggingtypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 
-	"github.com/ffreis/platform-cli/pkg/inventory"
+	"github.com/FelipeFuhr/ffreis-platform-cli/pkg/inventory"
 )
 
 var testContract = inventory.Contract{StackTag: "example", RepoTag: "example-repo", LayerTag: "example-layer", TerraformRootTag: "stack"}

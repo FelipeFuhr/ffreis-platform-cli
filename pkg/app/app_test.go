@@ -13,7 +13,7 @@ import (
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/spf13/cobra"
 
-	sharedauth "github.com/ffreis/platform-cli/pkg/auth"
+	sharedauth "github.com/FelipeFuhr/ffreis-platform-cli/pkg/auth"
 )
 
 type fakeSTSClient struct{}

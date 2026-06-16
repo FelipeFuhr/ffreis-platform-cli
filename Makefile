@@ -97,7 +97,7 @@ ensure-golangci-lint:
 		mkdir -p $(LEFTHOOK_DIR); \
 		if [ ! -x "$(LOCAL_GOLANGCI_LINT)" ] \
 			|| ! "$(LOCAL_GOLANGCI_LINT)" version 2>/dev/null | grep -Eq 'golangci-lint has version (v)?2\.' \
-			|| ! go version -m "$(LOCAL_GOLANGCI_LINT)" 2>/dev/null | grep -Eq '^[[:space:]]+go[[:space:]]+$(GO_TOOLCHAIN)$$'; then \
+			|| ! go version -m "$(LOCAL_GOLANGCI_LINT)" 2>/dev/null | grep -Eq '^.*:[[:space:]]+$(GO_TOOLCHAIN)$$'; then \
 			echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION) with $(GO_TOOLCHAIN) into $(LEFTHOOK_DIR)"; \
 			GOTOOLCHAIN=$(GO_TOOLCHAIN) GOBIN=$(LEFTHOOK_DIR) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
 		fi; \

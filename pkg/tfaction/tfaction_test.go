@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ffreis/platform-cli/pkg/auth"
-	"github.com/ffreis/platform-cli/pkg/tfexec"
+	"github.com/FelipeFuhr/ffreis-platform-cli/pkg/auth"
+	"github.com/FelipeFuhr/ffreis-platform-cli/pkg/tfexec"
 )
 
 const (

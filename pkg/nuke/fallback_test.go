@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	sharedaudit "github.com/ffreis/platform-cli/pkg/audit"
+	sharedaudit "github.com/FelipeFuhr/ffreis-platform-cli/pkg/audit"
 )
 
 type fakeStateS3Client struct {
