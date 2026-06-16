@@ -3,10 +3,9 @@ repos:
   rev: v8.16.3
   hooks:
   - id: gitleaks
-- repo: https://github.com/golangci/golangci-lint
-  rev: v1.52.2
-  hooks:
-  - id: golangci-lint
+# golangci-lint runs via the lefthook `lint` step (built from source with the
+# repo's Go toolchain). The pre-commit prebuilt binary is built with an older Go
+# and refuses this repo's newer go target, so it is intentionally not duplicated here.
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
   hooks:
