@@ -1,4 +1,4 @@
-module github.com/ffreis/platform-cli
+module github.com/FelipeFuhr/ffreis-platform-cli
 
 go 1.25.8
 

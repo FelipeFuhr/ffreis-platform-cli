@@ -24,9 +24,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	sharedaudit "github.com/ffreis/platform-cli/pkg/audit"
-	sharedoutput "github.com/ffreis/platform-cli/pkg/output"
-	"github.com/ffreis/platform-cli/pkg/tfexec"
+	sharedaudit "github.com/FelipeFuhr/ffreis-platform-cli/pkg/audit"
+	sharedoutput "github.com/FelipeFuhr/ffreis-platform-cli/pkg/output"
+	"github.com/FelipeFuhr/ffreis-platform-cli/pkg/tfexec"
 )
 
 type cloudControlAPI interface {
