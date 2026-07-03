@@ -11,7 +11,10 @@ This module is intended for private platform infrastructure repos that wrap Terr
 It provides reusable building blocks for:
 
 - Cobra root-command construction for downstream Terraform CLIs
-- Standard local commands such as `version`
+- The standard infra-repo lifecycle command set — `plan`, `apply`, `outputs`,
+  `nuke`, `version`, `doctor` — wired in one call via
+  `app.RegisterStandardCommands(root, cfg)`, with per-repo variance captured by
+  `app.StandardConfig`
 - AWS profile loading and `platform-admin` role assumption
 - Terraform subprocess execution helpers
 - Plain-text command output helpers
@@ -26,12 +29,12 @@ Development hygiene:
 - install hooks with `make lefthook-install`
 - CI also runs the configured `pre-commit` and `pre-push` hook suites
 - `pre-commit` runs formatting, module hygiene, and `golangci-lint`
-- `pre-push` runs `go vet`, tests, `govulncheck`, and a 35% coverage gate
+- `pre-push` runs `go vet`, tests, `govulncheck`, and a 75% coverage gate
 - staged secret scans still require `gitleaks` to be available locally
 
 Current package layout:
 
-- `pkg/app` for common root-command and local-command scaffolding
+- `pkg/app` for root-command scaffolding and the standard lifecycle command set
 - `pkg/inventory` for shared ownership and tagging contract definitions
 - `pkg/audit` for generic tagged-resource scan and classification helpers
 - `pkg/doctor` for shared preflight report types and failure-counting helpers
