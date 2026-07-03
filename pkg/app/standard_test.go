@@ -504,6 +504,47 @@ func TestLoggerUsesRuntimeLoggerWhenSet(t *testing.T) {
 	}
 }
 
+func TestRunApplyThreadsExtraArgs(t *testing.T) {
+	tf := &fakeTerraform{exitCode: 0}
+	p := &recordingPresenter{}
+	cfg := baseConfig(tf, p)
+
+	if err := RunApply(context.Background(), cfg, p, true, []string{"-var", "domain_name=example.com"}); err != nil {
+		t.Fatalf("RunApply returned error: %v", err)
+	}
+
+	found := false
+	for _, args := range tf.runs {
+		for i, a := range args {
+			if a == "-var" && i+1 < len(args) && args[i+1] == "domain_name=example.com" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("expected extra -var args in terraform apply, got: %v", tf.runs)
+	}
+}
+
+func TestRunApplyAbortsOnDoctorFailureBeforeTerraform(t *testing.T) {
+	tf := &fakeTerraform{exitCode: 0}
+	p := &recordingPresenter{}
+	cfg := baseConfig(tf, p)
+	cfg.DoctorSections = func(context.Context, DoctorMode) ([]doctor.Section, error) {
+		return []doctor.Section{{Title: "Contract", Checks: []doctor.Check{
+			{Key: "x", Title: "backend", Status: "fail", Blocking: true},
+		}}}, nil
+	}
+
+	err := RunApply(context.Background(), cfg, p, false, []string{"-var", "x=1"})
+	if err == nil || !strings.Contains(err.Error(), "doctor preflight failed") {
+		t.Fatalf("expected doctor preflight failure, got: %v", err)
+	}
+	if len(tf.runs) != 0 {
+		t.Errorf("terraform must not run after a failed preflight, ran: %v", tf.runs)
+	}
+}
+
 func TestFormatOutputValue(t *testing.T) {
 	cases := []struct {
 		name string

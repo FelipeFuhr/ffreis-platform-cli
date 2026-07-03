@@ -319,6 +319,68 @@ const applyLong = `apply runs terraform apply, creating or updating all managed 
 State is stored in the bootstrap-managed S3 bucket and locked via DynamoDB.
 A doctor preflight runs first; a blocking failure aborts before any change.`
 
+// RunApply runs the doctor-gated terraform apply flow used by the standard
+// apply command: header/summary, doctor preflight, terraform apply (with the
+// given extraArgs appended), and the optional PostApply verification.
+//
+// Exported so a repo-specific command that needs extra terraform arguments
+// (e.g. a one-time -var override during a domain migration) can reuse the same
+// orchestration instead of re-implementing the doctor-preflight-and-gate
+// pattern locally.
+func RunApply(ctx context.Context, cfg StandardConfig, out Presenter, autoApprove bool, extraArgs []string) error {
+	rt := cfg.runtime()
+
+	root, err := cfg.repoRoot()
+	if err != nil {
+		return err
+	}
+	stack, err := cfg.stackDir()
+	if err != nil {
+		return err
+	}
+
+	out.Header(cfg.DisplayName+" Apply", cfg.headerSummary())
+	out.Summary("Context", "stack="+stack, "auto-approve="+strconv.FormatBool(autoApprove))
+	out.Blank()
+
+	out.Status("info", "doctor", "running "+cfg.DisplayName+" preflight checks")
+	if err := cfg.runDoctorPreflight(ctx, out, DoctorModes.Apply); err != nil {
+		return err
+	}
+	out.Blank()
+
+	cfg.logger().Info("running terraform apply", "env", rt.Env, "auto_approve", autoApprove)
+	result, err := tfaction.RunApply(ctx, tfaction.ApplyOptions{
+		Root:         root,
+		Stack:        stack,
+		Env:          rt.Env,
+		Creds:        rt.Creds,
+		Stdin:        cfg.stdin(),
+		AutoApprove:  autoApprove,
+		ExtraArgs:    extraArgs,
+		EnsureInit:   cfg.ensureInitFn(),
+		RunTerraform: cfg.runTerraformFn(),
+	})
+	if err != nil {
+		out.Status("info", "hint", "run the doctor command before retrying to verify backend and input wiring")
+		return fmt.Errorf("terraform apply: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("terraform apply exited with code %d", result.ExitCode)
+	}
+
+	if cfg.PostApply != nil {
+		if err := cfg.PostApply(ctx, out, root, stack); err != nil {
+			return err
+		}
+	}
+
+	cfg.logger().Info("apply complete")
+	out.Blank()
+	out.Status("ok", "ok", "terraform apply complete")
+	return nil
+}
+
 // NewApplyCommand builds the standard `apply` command: doctor preflight, then
 // terraform apply, then the optional repo-specific PostApply verification.
 func NewApplyCommand(cfg StandardConfig) *cobra.Command {
@@ -328,58 +390,7 @@ func NewApplyCommand(cfg StandardConfig) *cobra.Command {
 		Short: "Provision all infrastructure for the given environment",
 		Long:  applyLong,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
-			out := cfg.newOutput(cmd)
-			rt := cfg.runtime()
-
-			root, err := cfg.repoRoot()
-			if err != nil {
-				return err
-			}
-			stack, err := cfg.stackDir()
-			if err != nil {
-				return err
-			}
-
-			out.Header(cfg.DisplayName+" Apply", cfg.headerSummary())
-			out.Summary("Context", "stack="+stack, "auto-approve="+strconv.FormatBool(autoApprove))
-			out.Blank()
-
-			out.Status("info", "doctor", "running "+cfg.DisplayName+" preflight checks")
-			if err := cfg.runDoctorPreflight(ctx, out, DoctorModes.Apply); err != nil {
-				return err
-			}
-			out.Blank()
-
-			cfg.logger().Info("running terraform apply", "env", rt.Env, "auto_approve", autoApprove)
-			result, err := tfaction.RunApply(ctx, tfaction.ApplyOptions{
-				Root:         root,
-				Stack:        stack,
-				Env:          rt.Env,
-				Creds:        rt.Creds,
-				Stdin:        cfg.stdin(),
-				AutoApprove:  autoApprove,
-				EnsureInit:   cfg.ensureInitFn(),
-				RunTerraform: cfg.runTerraformFn(),
-			})
-			if err != nil {
-				out.Status("info", "hint", "run the doctor command before retrying to verify backend and input wiring")
-				return fmt.Errorf("terraform apply: %w", err)
-			}
-			if result.ExitCode != 0 {
-				return fmt.Errorf("terraform apply exited with code %d", result.ExitCode)
-			}
-
-			if cfg.PostApply != nil {
-				if err := cfg.PostApply(ctx, out, root, stack); err != nil {
-					return err
-				}
-			}
-
-			cfg.logger().Info("apply complete")
-			out.Blank()
-			out.Status("ok", "ok", "terraform apply complete")
-			return nil
+			return RunApply(cmd.Context(), cfg, cfg.newOutput(cmd), autoApprove, nil)
 		},
 	}
 	cmd.Flags().BoolVar(&autoApprove, "auto-approve", false, "Skip interactive approval")

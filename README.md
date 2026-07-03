@@ -18,6 +18,12 @@ It provides reusable building blocks for:
 - AWS profile loading and `platform-admin` role assumption
 - Terraform subprocess execution helpers
 - Plain-text command output helpers
+- A lipgloss-backed rich terminal presenter (`ui.CommandOutput`) satisfying
+  `app.Presenter`, for consumers that want styled output instead of the plain
+  default
+- `app.RunApply` — the doctor-gated apply orchestration used by `apply`,
+  exported so a repo-specific command needing extra terraform args (e.g. a
+  one-time `-var` override) can reuse it instead of re-implementing it
 
 The module is intentionally small. Repo-specific commands and validation rules
 stay in each downstream repo.
@@ -43,3 +49,5 @@ Current package layout:
 - `pkg/auth` for non-root downstream auth and role assumption
 - `pkg/tfexec` for Terraform path and subprocess helpers
 - `pkg/output` for shared plain-text output primitives
+- `pkg/ui` for the shared lipgloss-backed rich presenter and its `CommandOutput`
+  adapter (satisfies `app.Presenter`)
