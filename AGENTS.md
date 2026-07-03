@@ -65,14 +65,23 @@ variance):
   dir (`"infra"`; defaults to `tfexec.StackDirName`).
 - `Runtime *StandardRuntime` — a pointer the consumer's `AfterAuth` fills each run;
   every standard command reads env/creds/region/account from it.
-- `NewOutput` — returns the repo's rich `app.Presenter` (from `pkg/ui`); omit for
-  plain text.
+- `NewOutput` — returns the repo's `app.Presenter`. For rich (lipgloss-styled)
+  output, wrap the shared `ui.Presenter` with `ui.NewCommandOutput(presenter, out,
+  err)` — it satisfies `app.Presenter` directly. Omit `NewOutput` for the plain-text
+  default (`output.CommandOutput`).
 - `DoctorSections(ctx, mode)` — the repo supplies its doctor sections; the shared
   command assembles the report, summarises, renders/JSON-emits, and gates. Apply and
   nuke reuse it as their preflight via `DoctorModes.Apply` / `.Nuke`.
 - `PostApply(ctx, out, root, stack)` — post-apply verification that differs per repo
   (flemming: shared-dependency check; shared-infra: artifact sync).
 - `NukeFallback(...)` / `NukeLong` — SDK cleanup after a failed destroy, and help text.
+
+**Reusing the apply orchestration with extra terraform args.** A repo-specific
+command that needs the same doctor-gated apply flow but with extra terraform args
+(e.g. flemming's `deliver` command threading a temporary `-var domain_name=...`
+override) should call `app.RunApply(ctx, cfg, out, autoApprove, extraArgs)` directly
+instead of re-implementing the doctor-preflight-and-gate sequence. `NewApplyCommand`
+itself is a thin wrapper around this function with `extraArgs = nil`.
 
 **When a command diverges structurally** (e.g. `platform-org`'s backup-aware `nuke`
 with its own confirmation flow), the repo does NOT call `RegisterStandardCommands`.
