@@ -41,9 +41,18 @@ func LoadAWSConfig(ctx context.Context, profile, region string) (sdkaws.Config, 
 	switch {
 	case profile != "":
 		opts = append(opts, sdkcfg.WithSharedConfigProfile(profile))
+	case os.Getenv("AWS_PROFILE") != "":
+		// Deliberately adds no option: LoadDefaultConfig's own resolution chain
+		// already reads AWS_PROFILE. This case exists purely so the guard below
+		// stops rejecting a credential source the SDK would have accepted.
+		//
+		// Without it, `export AWS_PROFILE=...` — the mechanism this workspace
+		// standardises on (AGENTS.md "AWS Access") — failed with "no AWS
+		// credentials" even though every underlying AWS call would have worked.
+		// It surfaced as `make go-apply` refusing to run mid-deploy.
 	case os.Getenv("AWS_ACCESS_KEY_ID") != "":
 	default:
-		return sdkaws.Config{}, errors.New("no AWS credentials: set --profile or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY")
+		return sdkaws.Config{}, errors.New("no AWS credentials: set --profile, or AWS_PROFILE, or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY")
 	}
 	cfg, err := sdkcfg.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
