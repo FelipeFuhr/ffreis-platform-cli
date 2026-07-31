@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,9 +40,71 @@ func TestRawCredsToEnv(t *testing.T) {
 func TestLoadAWSConfigRequiresCredentials(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	// AWS_PROFILE must be cleared explicitly. It is a legitimate credential
+	// source, so leaving it inherited would make this test pass or fail based
+	// on the developer's shell rather than on the code.
+	t.Setenv("AWS_PROFILE", "")
 	_, err := LoadAWSConfig(context.Background(), "", testRegion)
 	if err == nil || !strings.Contains(err.Error(), "no AWS credentials") {
 		t.Fatalf(errUnexpectedFmt, err)
+	}
+}
+
+// withSharedConfig points the SDK at a throwaway shared-config file holding two
+// profiles with distinct regions, and clears every other credential source.
+//
+// Hermetic on purpose: resolving a named profile requires it to exist on disk,
+// so without this the tests would pass or fail based on whatever is in the
+// developer's ~/.aws/config.
+func withSharedConfig(t *testing.T) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config")
+	body := "[profile env-profile]\nregion = " + testRegionEUCentral1 +
+		"\n\n[profile flag-profile]\nregion = " + testRegionUSWest2 + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("writing shared config: %v", err)
+	}
+	t.Setenv("AWS_CONFIG_FILE", path)
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "credentials"))
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+}
+
+// TestLoadAWSConfigAcceptsAWSProfileEnv covers the credential source this
+// workspace actually standardises on (AGENTS.md "AWS Access": export
+// AWS_PROFILE=ffreis-platform). It used to be rejected outright even though the
+// SDK resolves it natively, which broke every `go-*` CLI target that has no
+// --profile flag to pass.
+func TestLoadAWSConfigAcceptsAWSProfileEnv(t *testing.T) {
+	withSharedConfig(t)
+	t.Setenv("AWS_PROFILE", "env-profile")
+
+	// Empty region so the resolved profile's own region is what lands in the
+	// config — that is the observable proof the profile was actually used,
+	// rather than an explicit WithRegion masking it.
+	cfg, err := LoadAWSConfig(context.Background(), "", "")
+	if err != nil {
+		t.Fatalf("AWS_PROFILE should be accepted as a credential source, got: %v", err)
+	}
+	if cfg.Region != testRegionEUCentral1 {
+		t.Errorf("Region = %q, want %q (env-profile's region)", cfg.Region, testRegionEUCentral1)
+	}
+}
+
+// TestLoadAWSConfigProfileFlagBeatsAWSProfileEnv pins the precedence: an
+// explicit --profile must win over the ambient environment, so a caller can
+// always override the shell they happen to be in.
+func TestLoadAWSConfigProfileFlagBeatsAWSProfileEnv(t *testing.T) {
+	withSharedConfig(t)
+	t.Setenv("AWS_PROFILE", "env-profile")
+
+	cfg, err := LoadAWSConfig(context.Background(), "flag-profile", "")
+	if err != nil {
+		t.Fatalf("LoadAWSConfig() error = %v", err)
+	}
+	// flag-profile's region, not env-profile's — proves the flag won.
+	if cfg.Region != testRegionUSWest2 {
+		t.Errorf("Region = %q, want %q (flag-profile beats AWS_PROFILE)", cfg.Region, testRegionUSWest2)
 	}
 }
 
