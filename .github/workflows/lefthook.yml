@@ -21,7 +21,7 @@ jobs:
   lefthook:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@8ff19efd329b76bce5ff5b98074b9aec74b239da # v1.8.1
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@82097e621b8f630f2be2f759025529f7f5442796 # v1.9.0
     with:
       working-directory: "."
       go-version: "1.25.9"
