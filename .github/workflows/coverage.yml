@@ -20,7 +20,7 @@ jobs:
   coverage:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@2dc66b62be7f8685244fed807fcb160c7ba7af24
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     with:
       go-version: "1.25.9"
       working-directory: "."
