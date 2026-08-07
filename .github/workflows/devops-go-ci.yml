@@ -24,7 +24,7 @@ jobs:
   mod-tidy:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-mod-tidy-check.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-mod-tidy-check.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25.9"
       working-directory: "."
@@ -32,7 +32,7 @@ jobs:
   fmt:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25.9"
       working-directory: "."
@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # L2 S3 cache OIDC (no-op when go-cache-s3 is false); mirrors go-test.yml callee
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25.9"
       working-directory: "."
