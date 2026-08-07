@@ -36,8 +36,8 @@ LDFLAGS     := -ldflags "-X $(MODULE)/cmd.version=$(GIT_TAG) \
                           -X $(MODULE)/cmd.buildTime=$(BUILD_TIME)"
 
 .PHONY: all build clean test test-verbose test-integration test-integration-verbose test-race fmt fmt-check lint tidy \
-        validate plan mutation-test \
-	coverage-gate smoke-check secrets-scan-staged quality-gates hook-generated-drift \
+        validate plan mutation \
+	coverage-gate integration-coverage-gate smoke-check secrets-scan-staged quality-gates hook-generated-drift \
 	bootstrap-hook-tools \
 	ensure-golangci-lint \
 	ensure-govulncheck \
@@ -131,6 +131,10 @@ test-race:
 ## coverage-gate: run tests with coverage; fail if below COVERAGE_MIN
 coverage-gate:
 	@COVERAGE_MIN="$(COVERAGE_MIN)" COVERAGE_PACKAGES="$(COVERAGE_PACKAGES)" ./scripts/hooks/check_coverage_gate.sh
+
+## integration-coverage-gate: run integration-tagged tests with coverage; fail if below COVERAGE_MIN
+integration-coverage-gate:
+	@COVERAGE_MIN="$(COVERAGE_MIN)" ./scripts/hooks/check_integration_coverage_gate.sh
 
 ## smoke-check: build binary and verify --help exits cleanly
 smoke-check:
@@ -353,8 +357,8 @@ lefthook-run: lefthook-bootstrap
 ## lefthook: install hooks and run them
 lefthook: lefthook-bootstrap lefthook-install lefthook-run
 
-## mutation-test: run mutation testing with gremlins (slow — intended for CI/weekly)
-mutation-test: ## Run mutation testing with gremlins (slow — CI only)
+## mutation: run mutation testing with gremlins (slow — intended for CI/weekly)
+mutation: ## Run mutation testing with gremlins (slow — CI only)
 	@which gremlins >/dev/null 2>&1 || go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
 	gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) $(MUTATION_PACKAGES)
 
