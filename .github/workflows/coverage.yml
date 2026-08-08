@@ -4,12 +4,18 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
       - ".github/workflows/**"
   push:
     branches: [main, master]
     paths:
-      - "**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
       - ".github/workflows/**"
 
 concurrency:
