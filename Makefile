@@ -20,6 +20,8 @@ LEFTHOOK_VERSION ?= 1.7.10
 
 MUTATION_PACKAGES ?= ./pkg/...
 MUTATION_THRESHOLD ?= 60
+FUZZ_PACKAGES ?= ./...
+FUZZ_TIME ?= 30s
 LEFTHOOK_DIR     ?= $(CURDIR)/.bin
 LEFTHOOK_BIN     ?= $(LEFTHOOK_DIR)/lefthook
 LOCAL_GOLANGCI_LINT ?= $(LEFTHOOK_DIR)/golangci-lint
@@ -35,8 +37,8 @@ LDFLAGS     := -ldflags "-X $(MODULE)/cmd.version=$(GIT_TAG) \
                           -X $(MODULE)/cmd.commit=$(GIT_COMMIT) \
                           -X $(MODULE)/cmd.buildTime=$(BUILD_TIME)"
 
-.PHONY: all build clean test test-verbose test-integration test-integration-verbose test-race fmt fmt-check lint tidy \
-        validate plan mutation \
+.PHONY: all build build-all clean test test-verbose test-integration test-integration-verbose test-race fmt fmt-check lint tidy \
+		validate plan mutation fuzz \
 	coverage-gate integration-coverage-gate smoke-check secrets-scan-staged quality-gates hook-generated-drift \
 	bootstrap-hook-tools \
 	ensure-golangci-lint \
@@ -55,6 +57,11 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) $(CMD_PKG)
 	@echo "built $(BUILD_DIR)/$(BINARY)"
+
+build-all: build ## Alias required by the lefthook release tier
+
+fuzz: ## Run all Fuzz* targets for FUZZ_TIME each (no-op when none exist)
+	@for pkg in $$(go list $(FUZZ_PACKAGES)); do targets=$$(go test -list 'Fuzz.*' "$$pkg" 2>/dev/null | grep '^Fuzz' || true); for target in $$targets; do go test -run='^$$' -fuzz="^$${target}$$" -fuzztime="$(FUZZ_TIME)" "$$pkg"; done; done
 
 ## clean: remove build artefacts
 clean:
