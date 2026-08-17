@@ -20,6 +20,8 @@ LEFTHOOK_VERSION ?= 1.7.10
 
 MUTATION_PACKAGES ?= ./pkg/...
 MUTATION_THRESHOLD ?= 60
+FUZZ_PACKAGES ?= ./...
+FUZZ_TIME ?= 30s
 LEFTHOOK_DIR     ?= $(CURDIR)/.bin
 LEFTHOOK_BIN     ?= $(LEFTHOOK_DIR)/lefthook
 LOCAL_GOLANGCI_LINT ?= $(LEFTHOOK_DIR)/golangci-lint
@@ -35,9 +37,9 @@ LDFLAGS     := -ldflags "-X $(MODULE)/cmd.version=$(GIT_TAG) \
                           -X $(MODULE)/cmd.commit=$(GIT_COMMIT) \
                           -X $(MODULE)/cmd.buildTime=$(BUILD_TIME)"
 
-.PHONY: all build clean test test-verbose test-integration test-integration-verbose test-race fmt fmt-check lint tidy \
-        validate plan mutation-test \
-	coverage-gate smoke-check secrets-scan-staged quality-gates hook-generated-drift \
+.PHONY: all build build-all clean test test-verbose test-integration test-integration-verbose test-race fmt fmt-check lint tidy \
+		validate plan mutation fuzz \
+	coverage-gate integration-coverage-gate smoke-check secrets-scan-staged quality-gates hook-generated-drift \
 	bootstrap-hook-tools \
 	ensure-golangci-lint \
 	ensure-govulncheck \
@@ -55,6 +57,11 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) $(CMD_PKG)
 	@echo "built $(BUILD_DIR)/$(BINARY)"
+
+build-all: build ## Alias required by the lefthook release tier
+
+fuzz: ## Run all Fuzz* targets for FUZZ_TIME each (no-op when none exist)
+	@for pkg in $$(go list $(FUZZ_PACKAGES)); do targets=$$(go test -list 'Fuzz.*' "$$pkg" 2>/dev/null | grep '^Fuzz' || true); for target in $$targets; do go test -run='^$$' -fuzz="^$${target}$$" -fuzztime="$(FUZZ_TIME)" "$$pkg"; done; done
 
 ## clean: remove build artefacts
 clean:
@@ -131,6 +138,10 @@ test-race:
 ## coverage-gate: run tests with coverage; fail if below COVERAGE_MIN
 coverage-gate:
 	@COVERAGE_MIN="$(COVERAGE_MIN)" COVERAGE_PACKAGES="$(COVERAGE_PACKAGES)" ./scripts/hooks/check_coverage_gate.sh
+
+## integration-coverage-gate: run integration-tagged tests with coverage; fail if below COVERAGE_MIN
+integration-coverage-gate:
+	@COVERAGE_MIN="$(COVERAGE_MIN)" ./scripts/hooks/check_integration_coverage_gate.sh
 
 ## smoke-check: build binary and verify --help exits cleanly
 smoke-check:
@@ -353,8 +364,8 @@ lefthook-run: lefthook-bootstrap
 ## lefthook: install hooks and run them
 lefthook: lefthook-bootstrap lefthook-install lefthook-run
 
-## mutation-test: run mutation testing with gremlins (slow — intended for CI/weekly)
-mutation-test: ## Run mutation testing with gremlins (slow — CI only)
+## mutation: run mutation testing with gremlins (slow — intended for CI/weekly)
+mutation: ## Run mutation testing with gremlins (slow — CI only)
 	@which gremlins >/dev/null 2>&1 || go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
 	gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) $(MUTATION_PACKAGES)
 
