@@ -2,7 +2,7 @@ module github.com/FelipeFuhr/ffreis-platform-cli
 
 go 1.25.8
 
-toolchain go1.25.13
+toolchain go1.26.6
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.7
