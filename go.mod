@@ -1,8 +1,12 @@
 module github.com/FelipeFuhr/ffreis-platform-cli
 
-go 1.25.8
+go 1.26.0
 
-toolchain go1.25.13
+// scan-fix(govulncheck:toolchain-floor): golang.org/x/vuln@v1.9.0 (what
+// `make ensure-govulncheck` installs) itself requires go >= 1.26.0 to build,
+// so govulncheck couldn't even run on the prior go1.25.13 toolchain -- the
+// quality-gates job failed before reporting any actual vulnerability status.
+toolchain go1.26.9
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.7
