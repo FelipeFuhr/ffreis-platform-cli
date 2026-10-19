@@ -373,7 +373,8 @@ mutation: ## Run mutation testing with gremlins (slow — CI only)
 help:
 	@grep -E '^## ' Makefile | sed 's/## /  /'
 
-PLATFORM_STANDARDS_SHA ?= 3c787edb4e96ddea2e86b2add2c32139685e8db7  # v1.2.1
+# v1.2.1
+PLATFORM_STANDARDS_SHA ?= 3c787edb4e96ddea2e86b2add2c32139685e8db7
 PLATFORM_STANDARDS_RAW ?= https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards
 
 install-act: ## Download pinned act binary into .bin/
